@@ -1,0 +1,138 @@
+<template>
+    <div class="studio-root">
+        <!-- Toolbar -->
+        <div class="studio-toolbar">
+            <div class="toolbar-left">
+                <span class="toolbar-title">Marketing Automation Studio</span>
+            </div>
+            <div class="toolbar-center">
+                <button class="toolbar-btn" title="Undo" data-action="undo" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><path d="M4.5 7.5L1 4l3.5-3.5M1.5 4H11a4 4 0 010 8H8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Redo" data-action="redo" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><path d="M11.5 7.5L15 4l-3.5-3.5M14.5 4H5a4 4 0 000 8h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <span class="toolbar-divider"></span>
+                <button class="toolbar-btn" title="Zoom In" data-action="zoomIn" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5M7 4.5v5M4.5 7h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Zoom Out" data-action="zoomOut" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5M4.5 7h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <button class="toolbar-btn" title="Fit to Screen" data-action="fitToScreen" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <span class="toolbar-divider"></span>
+                <button class="toolbar-btn" title="Auto Layout" data-action="autoLayout" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><rect x="5" y="1" width="6" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="11" width="6" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="11" width="6" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3M8 8L4 11M8 8l4 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <div class="toolbar-right">
+                <button class="toolbar-btn toolbar-btn--accent" title="Run Animation" data-action="runAnimation" onclick={handleToolbarAction}>
+                    <svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 2l10 6-10 6V2z" fill="currentColor"/></svg>
+                    <span class="toolbar-btn-label">Run</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="studio-body">
+            <!-- Sidebar Palette -->
+            <div class="studio-sidebar">
+                <div class="sidebar-section-title">Workflow Steps</div>
+                <template for:each={paletteItems} for:item="item">
+                    <div key={item.type}
+                         class="palette-item"
+                         draggable="true"
+                         data-type={item.type}
+                         ondragstart={handlePaletteDragStart}>
+                        <span class="palette-icon" style={item.iconStyle}>{item.icon}</span>
+                        <div class="palette-info">
+                            <span class="palette-label">{item.label}</span>
+                            <span class="palette-desc">{item.description}</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Canvas -->
+            <div class="studio-canvas"
+                 ondragover={handleCanvasDragOver}
+                 ondrop={handleCanvasDrop}>
+                <div class="canvas-container" lwc:dom="manual"></div>
+                <!-- Minimap -->
+                <div class="minimap-container" lwc:dom="manual"></div>
+                <!-- Zoom indicator -->
+                <div class="zoom-indicator">{zoomLabel}</div>
+            </div>
+
+            <!-- Property Panel -->
+            <div class={propertyPanelClass}>
+                <template if:true={selectedNode}>
+                    <div class="prop-header">
+                        <span class="prop-header-icon" style={selectedNodeIconStyle}>{selectedNodeIcon}</span>
+                        <span class="prop-header-title">Edit {selectedNodeTypeLabel}</span>
+                        <button class="prop-close-btn" onclick={handleClosePropertyPanel}>&times;</button>
+                    </div>
+                    <div class="prop-body">
+                        <div class="prop-field">
+                            <label class="prop-label">Name</label>
+                            <input type="text" class="prop-input" value={selectedNode.label} data-field="label" onchange={handlePropertyChange}/>
+                        </div>
+                        <div class="prop-field">
+                            <label class="prop-label">Description</label>
+                            <textarea class="prop-textarea" data-field="description" onchange={handlePropertyChange}>{selectedNode.description}</textarea>
+                        </div>
+                        <template if:true={isSelectedEmail}>
+                            <div class="prop-field">
+                                <label class="prop-label">Subject Line</label>
+                                <input type="text" class="prop-input" value={selectedNode.subject} data-field="subject" onchange={handlePropertyChange}/>
+                            </div>
+                            <div class="prop-field">
+                                <label class="prop-label">Template</label>
+                                <select class="prop-select" data-field="template" onchange={handlePropertyChange}>
+                                    <option value="welcome">Welcome Template</option>
+                                    <option value="followup">Follow-up Template</option>
+                                    <option value="promo">Promotional Template</option>
+                                    <option value="custom">Custom Template</option>
+                                </select>
+                            </div>
+                        </template>
+                        <template if:true={isSelectedWait}>
+                            <div class="prop-field">
+                                <label class="prop-label">Wait Duration</label>
+                                <div class="prop-row">
+                                    <input type="number" class="prop-input prop-input--sm" value={selectedNode.waitValue} data-field="waitValue" onchange={handlePropertyChange} min="1"/>
+                                    <select class="prop-select prop-select--sm" data-field="waitUnit" onchange={handlePropertyChange}>
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                        <option value="days">Days</option>
+                                        <option value="weeks">Weeks</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </template>
+                        <template if:true={isSelectedCondition}>
+                            <div class="prop-field">
+                                <label class="prop-label">Condition Type</label>
+                                <select class="prop-select" data-field="conditionType" onchange={handlePropertyChange}>
+                                    <option value="emailOpened">Email Opened</option>
+                                    <option value="linkClicked">Link Clicked</option>
+                                    <option value="fieldValue">Field Value</option>
+                                    <option value="listMember">List Membership</option>
+                                </select>
+                            </div>
+                        </template>
+                        <div class="prop-actions">
+                            <button class="prop-btn prop-btn--danger" onclick={handleDeleteSelectedNode}>Delete Step</button>
+                        </div>
+                    </div>
+                </template>
+                <template if:false={selectedNode}>
+                    <div class="prop-empty">
+                        <p>Select a workflow step to edit its properties</p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

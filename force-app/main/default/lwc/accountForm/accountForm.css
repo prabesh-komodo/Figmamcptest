@@ -1,0 +1,31 @@
+/* SLDS 2.0 – minimal scoped styles; layout via SLDS utility classes in template */
+
+.account-form {
+    display: block;
+}
+
+/* Relates To: search icon in place of combobox caret */
+.account-form__relates-to {
+    position: relative;
+    display: block;
+}
+
+.account-form__relates-to-icon {
+    position: absolute;
+    right: var(--slds-g-spacing-2, 0.5rem);
+    bottom: var(--slds-g-spacing-2, 0.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.account-form__relates-to-icon lightning-icon {
+    --slds-c-icon-color-foreground-default: var(--slds-g-color-neutral-base-50, #747474);
+}
+
+/* Hide combobox caret so only search icon shows */
+.account-form__relates-to-combobox {
+    --slds-c-combobox-icon-color-background: transparent;
+    --slds-c-combobox-icon-color-foreground: transparent;
+}

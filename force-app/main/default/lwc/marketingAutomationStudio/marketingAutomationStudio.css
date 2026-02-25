@@ -1,0 +1,542 @@
+/* ===== Root Layout ===== */
+.studio-root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 700px;
+    background: #f3f3f3;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
+    color: #2e2e2e;
+    overflow: hidden;
+}
+
+/* ===== Toolbar ===== */
+.studio-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    padding: 0 20px;
+    background: #ffffff;
+    border-bottom: 1px solid #c9c9c9;
+    flex-shrink: 0;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toolbar-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #03234d;
+    letter-spacing: -0.01em;
+}
+
+.toolbar-center {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0 10px;
+    border: 1px solid #c9c9c9;
+    border-radius: 9999px;
+    background: #ffffff;
+    color: #5c5c5c;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13px;
+}
+
+.toolbar-btn:hover {
+    background: #f3f3f3;
+    color: #2e2e2e;
+    border-color: #939393;
+}
+
+.toolbar-btn:active {
+    background: #e8e8e8;
+}
+
+.toolbar-btn--accent {
+    background: #0250d9;
+    color: #ffffff;
+    border-color: #0250d9;
+}
+
+.toolbar-btn--accent:hover {
+    background: #066afe;
+    color: #ffffff;
+    border-color: #066afe;
+}
+
+.toolbar-btn-label {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 20px;
+    background: #c9c9c9;
+    margin: 0 8px;
+}
+
+/* ===== Studio Body (3-column layout) ===== */
+.studio-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ===== Sidebar Palette ===== */
+.studio-sidebar {
+    width: 248px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-right: 1px solid #c9c9c9;
+    padding: 16px 12px;
+    overflow-y: auto;
+}
+
+.sidebar-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #5c5c5c;
+    margin-bottom: 12px;
+    padding: 0 8px;
+}
+
+.palette-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: grab;
+    transition: all 0.15s ease;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+}
+
+.palette-item:hover {
+    background: #f3f3f3;
+    border-color: #c9c9c9;
+}
+
+.palette-item:active {
+    cursor: grabbing;
+    background: #e8e8e8;
+}
+
+.palette-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.palette-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.palette-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #2e2e2e;
+}
+
+.palette-desc {
+    font-size: 11px;
+    color: #5c5c5c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ===== Canvas ===== */
+.studio-canvas {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #f3f3f3;
+}
+
+.canvas-container {
+    width: 100%;
+    height: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.zoom-indicator {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid #c9c9c9;
+    border-radius: 9999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #5c5c5c;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* ===== Minimap ===== */
+.minimap-container {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    width: 180px;
+    height: 130px;
+    background: rgba(255,255,255,0.94);
+    border: 1px solid #c9c9c9;
+    border-radius: 12px;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ===== Property Panel ===== */
+.studio-property-panel {
+    width: 0;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-left: 1px solid #c9c9c9;
+    overflow-y: auto;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.studio-property-panel--open {
+    width: 320px;
+}
+
+.prop-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #c9c9c9;
+}
+
+.prop-header-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.prop-header-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #03234d;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.prop-close-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #c9c9c9;
+    background: #ffffff;
+    color: #5c5c5c;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.prop-close-btn:hover {
+    background: #f3f3f3;
+    color: #2e2e2e;
+}
+
+.prop-body {
+    padding: 20px;
+}
+
+.prop-field {
+    margin-bottom: 16px;
+}
+
+.prop-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: #5c5c5c;
+    margin-bottom: 4px;
+    line-height: 16px;
+}
+
+.prop-input,
+.prop-textarea,
+.prop-select {
+    width: 100%;
+    padding: 6px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #c9c9c9;
+    border-radius: 0;
+    color: #2e2e2e;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+    line-height: 18px;
+}
+
+.prop-input:focus,
+.prop-textarea:focus,
+.prop-select:focus {
+    border-bottom-color: #066afe;
+}
+
+.prop-textarea {
+    min-height: 72px;
+    resize: vertical;
+    border: 1px solid #c9c9c9;
+    border-radius: 4px;
+    padding: 8px 10px;
+}
+
+.prop-textarea:focus {
+    border-color: #066afe;
+}
+
+.prop-select {
+    border: 1px solid #c9c9c9;
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: #ffffff;
+}
+
+.prop-select:focus {
+    border-color: #066afe;
+}
+
+.prop-row {
+    display: flex;
+    gap: 8px;
+}
+
+.prop-input--sm {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+.prop-select--sm {
+    flex: 1;
+}
+
+.prop-actions {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #c9c9c9;
+}
+
+.prop-btn {
+    width: 100%;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid transparent;
+}
+
+.prop-btn--danger {
+    background: #fff0ef;
+    color: #b0120a;
+    border-color: #f8514933;
+}
+
+.prop-btn--danger:hover {
+    background: #fee;
+    border-color: #f85149;
+}
+
+.prop-empty {
+    padding: 40px 24px;
+    text-align: center;
+}
+
+.prop-empty p {
+    color: #5c5c5c;
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ===== SVG Canvas ===== */
+.workflow-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* ===== Node & Link Styles ===== */
+.mas-node {
+    cursor: pointer;
+}
+
+.mas-node foreignObject * {
+    -webkit-user-drag: none;
+    user-select: none;
+}
+
+.mas-node.is-selected foreignObject > div {
+    border-color: #066afe;
+    box-shadow: 0 0 0 3px rgba(6,106,254,0.25), 0 2.8px 2.9px rgba(0,0,0,0.09);
+}
+
+.mas-link {
+    fill: none;
+}
+
+.mas-link--loopback {
+    stroke: #d29922;
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+}
+
+/* Execution pulse animation */
+@keyframes pulse-flow {
+    0% { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+}
+
+.mas-link.is-animating {
+    animation: pulse-flow 0.6s linear infinite;
+}
+
+/* Node glow during execution */
+@keyframes node-exec-glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.mas-node.is-executing foreignObject > div {
+    border-color: #4bca81 !important;
+    box-shadow: 0 0 0 3px rgba(75,202,129,0.3), 0 0 16px rgba(75,202,129,0.2) !important;
+    animation: node-exec-glow 0.8s ease-in-out;
+}
+
+/* Delete button on nodes (top-right) */
+.mas-node-del-btn {
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mas-node:hover .mas-node-del-btn {
+    opacity: 1;
+}
+
+.mas-node-del-btn:hover circle {
+    fill: #fef0ef;
+    stroke: #d1242f;
+}
+
+/* Connector port / add button (bottom-center) */
+.mas-node-port {
+    cursor: crosshair;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mas-node:hover .mas-node-port {
+    opacity: 1;
+}
+
+.mas-node-port:hover .mas-port-bg {
+    fill: #f0f4ff;
+    stroke: #066afe;
+}
+
+/* Input port dot (top-center) */
+.mas-node-input-port {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mas-node:hover .mas-node-input-port,
+.mas-node.is-connect-target .mas-node-input-port {
+    opacity: 1;
+}
+
+/* Target highlight when dragging a connector over a node */
+.mas-node.is-connect-target foreignObject > div {
+    border-color: #066afe !important;
+    box-shadow: 0 0 0 4px rgba(6,106,254,0.25), 0 0 24px rgba(6,106,254,0.18) !important;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+@keyframes port-pulse {
+    0%, 100% { r: 7; opacity: 1; }
+    50% { r: 9; opacity: 0.8; }
+}
+
+.mas-node.is-connect-target .mas-node-input-port {
+    fill: #066afe !important;
+    stroke: #066afe !important;
+    opacity: 1 !important;
+    animation: port-pulse 0.8s ease-in-out infinite;
+}
+
+/* Temp connector line while dragging */
+.mas-temp-link {
+    pointer-events: none;
+}
+
+/* Minimap */
+.minimap-viewport {
+    fill: rgba(6,106,254,0.08);
+    stroke: #066afe;
+    stroke-width: 1.5;
+    cursor: move;
+}
+
+.minimap-node {
+    rx: 2;
+    ry: 2;
+}
