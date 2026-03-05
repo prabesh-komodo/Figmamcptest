@@ -1,0 +1,247 @@
+<template>
+    <lightning-card>
+        <lightning-tabset variant="standard">
+            <lightning-tab label="Details">
+                <!-- slds-p-horizontal_medium slds-p-bottom_medium matches Figma card body padding -->
+                <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+                    <lightning-record-edit-form
+                        object-api-name="Contact"
+                        onsubmit={handleSubmit}
+                        onsuccess={handleSuccess}
+                        onerror={handleError}>
+
+                        <lightning-messages></lightning-messages>
+
+                        <!-- ── Contact Information ─────────────────────────────── -->
+                        <div class="slds-m-bottom_small">
+                            <!-- Gray rounded section header bar -->
+                            <div class="section-header slds-p-around_xx-small slds-p-horizontal_small slds-m-bottom_x-small">
+                                Contact Information
+                            </div>
+
+                            <!-- Row: Owner | Phone -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="OwnerId"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Phone"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Name group label -->
+                            <div class="slds-m-top_x-small slds-m-bottom_xx-small">
+                                <span class="slds-form-element__label slds-text-heading_small">
+                                    <abbr class="slds-required" title="required">*</abbr>&#160;Name
+                                </span>
+                            </div>
+
+                            <!-- Row: Salutation | Home Phone -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Salutation"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="HomePhone"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: First Name | Other Phone -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="FirstName" required></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="OtherPhone"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: Middle Name | Fax -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="MiddleName"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Fax"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: Last Name | Email -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="LastName" required></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Email"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: Title | Assistant -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Title"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="AssistantName"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: Department | Asst. Phone -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Department"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="AssistantPhone"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: Birthdate | (empty) -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="Birthdate"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2"></div>
+                            </div>
+
+                            <!-- Row: Reports To | (empty) -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="ReportsToId"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2"></div>
+                            </div>
+
+                            <!-- Row: Lead Source | (empty) -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="LeadSource"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2"></div>
+                            </div>
+
+                            <!-- Row: Relates To (record lookup) | (empty) -->
+                            <div class="slds-grid slds-gutters">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-record-picker
+                                        label="Relates To"
+                                        placeholder="Search Records..."
+                                        object-api-name="Account"
+                                        value={relatesToId}
+                                        onchange={handleRelatesToChange}>
+                                    </lightning-record-picker>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- ── Address Information ─────────────────────────────── -->
+                        <div class="slds-m-bottom_small">
+                            <div class="section-header slds-p-around_xx-small slds-p-horizontal_small slds-m-bottom_x-small">
+                                Address Information
+                            </div>
+
+                            <!-- Column group headings: Mailing | Other -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_xx-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <span class="slds-text-heading_small slds-text-color_default">Mailing Address</span>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <span class="slds-text-heading_small slds-text-color_default">Other Address</span>
+                                </div>
+                            </div>
+
+                            <!-- Row: Mailing Street | Other Street -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="MailingStreet"></lightning-input-field>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <lightning-input-field field-name="OtherStreet"></lightning-input-field>
+                                </div>
+                            </div>
+
+                            <!-- Row: [Mailing City + Mailing State] | [Other City + Other State] -->
+                            <div class="slds-grid slds-gutters slds-m-bottom_x-small">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <div class="slds-grid slds-gutters">
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="MailingCity"></lightning-input-field>
+                                        </div>
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="MailingState"></lightning-input-field>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <div class="slds-grid slds-gutters">
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="OtherCity"></lightning-input-field>
+                                        </div>
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="OtherState"></lightning-input-field>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Row: [Mailing Zip + Mailing Country] | [Other Zip + Other Country] -->
+                            <div class="slds-grid slds-gutters">
+                                <div class="slds-col slds-size_1-of-2">
+                                    <div class="slds-grid slds-gutters">
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="MailingPostalCode"></lightning-input-field>
+                                        </div>
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="MailingCountry"></lightning-input-field>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="slds-col slds-size_1-of-2">
+                                    <div class="slds-grid slds-gutters">
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="OtherPostalCode"></lightning-input-field>
+                                        </div>
+                                        <div class="slds-col">
+                                            <lightning-input-field field-name="OtherCountry"></lightning-input-field>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ── Description Information ─────────────────────────── -->
+                        <div class="slds-m-bottom_medium">
+                            <div class="section-header slds-p-around_xx-small slds-p-horizontal_small slds-m-bottom_x-small">
+                                Description Information
+                            </div>
+                            <lightning-input-field field-name="Description"></lightning-input-field>
+                        </div>
+
+                        <!-- ── Form Actions ────────────────────────────────────── -->
+                        <div class="slds-grid slds-grid_align-end slds-m-top_medium">
+                            <lightning-button
+                                label="Cancel"
+                                onclick={handleCancel}
+                                class="slds-m-right_x-small">
+                            </lightning-button>
+                            <lightning-button
+                                variant="brand"
+                                type="submit"
+                                label="Save"
+                                disabled={isSaving}>
+                            </lightning-button>
+                        </div>
+
+                    </lightning-record-edit-form>
+                </div>
+            </lightning-tab>
+
+            <lightning-tab label="User Roles">
+                <div class="slds-p-around_medium">
+                    <p class="slds-text-body_regular slds-text-color_weak">User Roles content will be displayed here.</p>
+                </div>
+            </lightning-tab>
+        </lightning-tabset>
+    </lightning-card>
+</template>

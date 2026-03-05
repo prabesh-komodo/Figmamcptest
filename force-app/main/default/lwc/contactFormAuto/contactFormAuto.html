@@ -1,0 +1,182 @@
+<template>
+    <div class="card-wrapper">
+        <lightning-card>
+            <div class="card-body">
+                <lightning-tabset active-tab-value="details">
+                    <lightning-tab label="Details" value="details">
+
+                        <!-- Contact Information -->
+                        <div class="section-block">
+                            <p class="model-label">Model: Auto</p>
+                            <div class="section-header">
+                                <span class="section-title">Contact Information</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <div class="readonly-field">
+                                            <label class="field-label">Owner</label>
+                                            <div class="readonly-value">
+                                                <lightning-avatar size="x-small" class="avatar-spacing" alternative-text="Owner"></lightning-avatar>
+                                                <span class="owner-name">{ownerName}</span>
+                                                <lightning-icon icon-name="utility:change_owner" size="x-small" class="icon-spacing"></lightning-icon>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="tel" label="Phone" value={phone} data-field="Phone" onchange={handleInputChange} placeholder="Enter Phone"></lightning-input>
+                                    </div>
+                                </div>
+
+                                <div class="group-label-row">
+                                    <span class="group-label"><abbr class="slds-required" title="required">*</abbr> Name</span>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-combobox label="Salutation" value={salutation} options={salutationOptions} data-field="Salutation" onchange={handleInputChange} placeholder="Enter Your Name"></lightning-combobox>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="tel" label="Home Phone" value={homePhone} data-field="HomePhone" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="First Name" value={firstName} required data-field="FirstName" onchange={handleInputChange} placeholder="First Name"></lightning-input>
+                                    </div>
+                                    <div class="form-col"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="Middle Name" value={middleName} data-field="MiddleName" onchange={handleInputChange} placeholder="Middle Name"></lightning-input>
+                                    </div>
+                                    <div class="form-col"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="Last Name" value={lastName} required data-field="LastName" onchange={handleInputChange} placeholder="Last Name"></lightning-input>
+                                    </div>
+                                    <div class="form-col"></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="Title" value={title} data-field="Title" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="tel" label="Other Phone" value={otherPhone} data-field="OtherPhone" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="Department" value={department} data-field="Department" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="tel" label="Fax" value={fax} data-field="Fax" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="date" label="Birthdate" value={birthdate} data-field="Birthdate" onchange={handleInputChange} placeholder="Select a date…"></lightning-input>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="email" label="Email" value={email} data-field="Email" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-record-picker
+                                            label="Reports To"
+                                            placeholder="Search Contacts..."
+                                            object-api-name="Contact"
+                                            value={reportsToId}
+                                            onchange={handleReportsToChange}
+                                        ></lightning-record-picker>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="Assistant" value={assistantName} data-field="AssistantName" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-record-picker
+                                            label="Lead Source"
+                                            placeholder="Search Campaigns..."
+                                            object-api-name="Campaign"
+                                            value={leadSourceId}
+                                            onchange={handleLeadSourceChange}
+                                        ></lightning-record-picker>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-input type="tel" label="Asst. Phone" value={assistantPhone} data-field="AssistantPhone" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-input type="text" label="Account Name" value={accountName} data-field="AccountName" onchange={handleAccountNameChange} placeholder="Enter Account Name to link or create"></lightning-input>
+                                    </div>
+                                    <div class="form-col"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Address Information -->
+                        <div class="section-block">
+                            <div class="section-header">
+                                <span class="section-title">Address Information</span>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-row labels-only">
+                                    <div class="form-col"><span class="group-label">Mailing Address</span></div>
+                                    <div class="form-col"><span class="group-label">Other Address</span></div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col">
+                                        <lightning-textarea label="Mailing Street" value={mailingStreet} data-field="MailingStreet" onchange={handleInputChange}></lightning-textarea>
+                                    </div>
+                                    <div class="form-col">
+                                        <lightning-textarea label="Other Street" value={otherStreet} data-field="OtherStreet" onchange={handleInputChange}></lightning-textarea>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col form-col-split">
+                                        <lightning-input type="text" label="Mailing City" value={mailingCity} data-field="MailingCity" onchange={handleInputChange}></lightning-input>
+                                        <lightning-input type="text" label="Mailing State/Province" value={mailingState} data-field="MailingState" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                    <div class="form-col form-col-split">
+                                        <lightning-input type="text" label="Other City" value={otherCity} data-field="OtherCity" onchange={handleInputChange}></lightning-input>
+                                        <lightning-input type="text" label="Other State/Province" value={otherState} data-field="OtherState" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-col form-col-split">
+                                        <lightning-input type="text" label="Mailing Zip/Postal Code" value={mailingPostalCode} data-field="MailingPostalCode" onchange={handleInputChange}></lightning-input>
+                                        <lightning-input type="text" label="Mailing Country" value={mailingCountry} data-field="MailingCountry" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                    <div class="form-col form-col-split">
+                                        <lightning-input type="text" label="Other Zip/Postal Code" value={otherPostalCode} data-field="OtherPostalCode" onchange={handleInputChange}></lightning-input>
+                                        <lightning-input type="text" label="Other Country" value={otherCountry} data-field="OtherCountry" onchange={handleInputChange}></lightning-input>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Information -->
+                        <div class="section-block">
+                            <div class="section-header">
+                                <span class="section-title">Description Information</span>
+                            </div>
+                            <div class="section-content">
+                                <lightning-textarea label="Description" value={description} data-field="Description" onchange={handleInputChange}></lightning-textarea>
+                            </div>
+                        </div>
+
+                        <div class="actions-row">
+                            <lightning-button label="Cancel" variant="neutral" onclick={handleCancel} class="slds-m-right_x-small"></lightning-button>
+                            <lightning-button label="Save" variant="brand" onclick={handleSave} disabled={isSaving}></lightning-button>
+                        </div>
+
+                    </lightning-tab>
+                </lightning-tabset>
+            </div>
+        </lightning-card>
+    </div>
+</template>

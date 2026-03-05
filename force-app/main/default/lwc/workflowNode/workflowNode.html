@@ -1,0 +1,69 @@
+<template>
+    <div class={cardClass}>
+        <!-- Delete button: hidden for root nodes -->
+        <template if:true={isDeletable}>
+            <button class="node-delete-btn" onclick={handleDelete} title="Delete step">&times;</button>
+        </template>
+
+        <!-- Input port (top-center) -->
+        <div class={inputPortClass}></div>
+
+        <!-- Card Header -->
+        <div class="card-header">
+            <div class="card-icon" style={iconStyle}>{icon}</div>
+            <div class="card-header-text">
+                <div class="card-type-label">{typeLabel}</div>
+                <div class="card-title">{nodeLabel}</div>
+            </div>
+            <button class="card-edit-btn" onclick={handleEdit}>Edit</button>
+        </div>
+
+        <!-- Card Body: common fields -->
+        <div class="card-body">
+            <template for:each={fields} for:item="field">
+                <div key={field.label} class="card-field">
+                    <div class="card-field-label">{field.label}</div>
+                    <div class="card-field-value">{field.value}</div>
+                </div>
+            </template>
+
+            <!-- Root: entry criteria + status badges -->
+            <template if:true={isRoot}>
+                <div class="card-field">
+                    <div class="card-field-label">Entry Criteria</div>
+                    <pre class="code-block">{entryCriteria}</pre>
+                </div>
+                <div class="badge-row">
+                    <span class={autostartBadgeClass}>Autostart: {autostartLabel}</span>
+                    <span class={isActiveBadgeClass}>{isActiveLabel}</span>
+                </div>
+            </template>
+
+            <!-- Stage: activities + status badges -->
+            <template if:true={isStage}>
+                <template if:true={hasActivities}>
+                    <div class="card-field">
+                        <div class="card-field-label">Activities</div>
+                        <div class="activities-list">
+                            <template for:each={activities} for:item="activity">
+                                <div key={activity.name} class="activity-item">
+                                    <span class="activity-dot"></span>
+                                    <span class="activity-name">{activity.name}</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <div class="badge-row">
+                    <span class={manualTransitionBadgeClass}>Manual: {manualTransitionLabel}</span>
+                    <span class={finalStageBadgeClass}>Final: {finalStageLabel}</span>
+                </div>
+            </template>
+        </div>
+
+        <!-- Output port (bottom-center) -->
+        <div class="node-output-port" onmousedown={handlePortMouseDown}>
+            <span class="port-plus">+</span>
+        </div>
+    </div>
+</template>

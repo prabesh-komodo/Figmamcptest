@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Salesforce App",
   "scripts": {
-    "build": "tsc && copyfiles -u 1 \"src/lwc/**/*.html\" \"src/lwc/**/*.css\" \"src/lwc/**/*.xml\" force-app/main/default/lwc",
+    "build": "node scripts/build.js",
+    "deploy": "node scripts/build.js && sf project deploy start --source-dir force-app",
     "lint": "eslint **/{aura,lwc}/**/*.js",
     "test": "npm run test:unit",
     "test:unit": "sfdx-lwc-jest",
@@ -23,7 +24,7 @@
     "@salesforce/eslint-plugin-aura": "^3.0.0",
     "@salesforce/eslint-plugin-lightning": "^2.0.0",
     "@salesforce/sfdx-lwc-jest": "^7.0.2",
-    "copyfiles": "^2.4.1",
+    "esbuild": "^0.27.3",
     "eslint": "^9.29.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-jest": "^28.14.0",
@@ -31,6 +32,7 @@
     "lint-staged": "^16.1.2",
     "prettier": "^3.5.3",
     "prettier-plugin-apex": "^2.2.6",
+    "ts-blank-space": "^0.7.0",
     "typescript": "^5.9.3"
   },
   "lint-staged": {

@@ -1,0 +1,14 @@
+.section-header {
+    background-color: #f3f3f3;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-weight: normal;
+    font-size: 1rem;
+    color: #2e2e2e;
+    margin-bottom: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.section-header:first-of-type {
+    margin-top: 0;
+}

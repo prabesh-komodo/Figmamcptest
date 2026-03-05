@@ -1,0 +1,17 @@
+:host {
+    display: block;
+}
+
+.slds-section__title {
+    border-radius: var(--slds-g-radius-border-2, 0.5rem);
+}
+
+.name-group-label {
+    display: flex;
+    align-items: center;
+}
+
+.owner-name {
+    color: var(--slds-g-color-accent-2, #0250d9);
+    font-size: var(--slds-g-font-scale-base, 0.8125rem);
+}

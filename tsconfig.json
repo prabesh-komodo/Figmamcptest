@@ -4,8 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "lib": ["ES2020", "DOM"],
-    "outDir": "force-app/main/default/lwc",
-    "rootDir": "src/lwc",
+    "rootDir": ".",
     "strict": true,
     "skipLibCheck": true,
     "experimentalDecorators": true,
@@ -19,6 +18,6 @@
     "allowSyntheticDefaultImports": true,
     "types": []
   },
-  "include": ["src/lwc/**/*.ts", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "force-app"]
+  "include": ["force-app/main/default/lwc/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["node_modules"]
 }

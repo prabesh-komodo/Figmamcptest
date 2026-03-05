@@ -189,12 +189,25 @@
     background: #f3f3f3;
 }
 
-.canvas-container {
+.canvas-svg-container {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     -webkit-user-select: none;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+.nodes-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;
 }
 
 .zoom-indicator {
@@ -369,6 +382,24 @@
     flex: 1;
 }
 
+.prop-field--row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.prop-label--inline {
+    margin-bottom: 0;
+}
+
+.prop-textarea--code {
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 12px;
+    line-height: 16px;
+    min-height: 100px;
+}
+
 .prop-actions {
     margin-top: 24px;
     padding-top: 16px;
@@ -414,21 +445,7 @@
     height: 100%;
 }
 
-/* ===== Node & Link Styles ===== */
-.mas-node {
-    cursor: pointer;
-}
-
-.mas-node foreignObject * {
-    -webkit-user-drag: none;
-    user-select: none;
-}
-
-.mas-node.is-selected foreignObject > div {
-    border-color: #066afe;
-    box-shadow: 0 0 0 3px rgba(6,106,254,0.25), 0 2.8px 2.9px rgba(0,0,0,0.09);
-}
-
+/* ===== Link Styles ===== */
 .mas-link {
     fill: none;
 }
@@ -439,7 +456,7 @@
     stroke-dasharray: 4 3;
 }
 
-/* Execution pulse animation */
+
 @keyframes pulse-flow {
     0% { stroke-dashoffset: 24; }
     100% { stroke-dashoffset: 0; }
@@ -449,81 +466,6 @@
     animation: pulse-flow 0.6s linear infinite;
 }
 
-/* Node glow during execution */
-@keyframes node-exec-glow {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-.mas-node.is-executing foreignObject > div {
-    border-color: #4bca81 !important;
-    box-shadow: 0 0 0 3px rgba(75,202,129,0.3), 0 0 16px rgba(75,202,129,0.2) !important;
-    animation: node-exec-glow 0.8s ease-in-out;
-}
-
-/* Delete button on nodes (top-right) */
-.mas-node-del-btn {
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-}
-
-.mas-node:hover .mas-node-del-btn {
-    opacity: 1;
-}
-
-.mas-node-del-btn:hover circle {
-    fill: #fef0ef;
-    stroke: #d1242f;
-}
-
-/* Connector port / add button (bottom-center) */
-.mas-node-port {
-    cursor: crosshair;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-}
-
-.mas-node:hover .mas-node-port {
-    opacity: 1;
-}
-
-.mas-node-port:hover .mas-port-bg {
-    fill: #f0f4ff;
-    stroke: #066afe;
-}
-
-/* Input port dot (top-center) */
-.mas-node-input-port {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-}
-
-.mas-node:hover .mas-node-input-port,
-.mas-node.is-connect-target .mas-node-input-port {
-    opacity: 1;
-}
-
-/* Target highlight when dragging a connector over a node */
-.mas-node.is-connect-target foreignObject > div {
-    border-color: #066afe !important;
-    box-shadow: 0 0 0 4px rgba(6,106,254,0.25), 0 0 24px rgba(6,106,254,0.18) !important;
-    transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-@keyframes port-pulse {
-    0%, 100% { r: 7; opacity: 1; }
-    50% { r: 9; opacity: 0.8; }
-}
-
-.mas-node.is-connect-target .mas-node-input-port {
-    fill: #066afe !important;
-    stroke: #066afe !important;
-    opacity: 1 !important;
-    animation: port-pulse 0.8s ease-in-out infinite;
-}
-
-/* Temp connector line while dragging */
 .mas-temp-link {
     pointer-events: none;
 }

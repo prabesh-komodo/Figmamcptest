@@ -1,0 +1,154 @@
+<template>
+    <lightning-card title="Details">
+        <div class="slds-p-around_medium">
+            <!-- Contact Information Section -->
+             MOdel: Gemini
+            <div class="section-header">Contact Information</div>
+            
+            <div class="slds-grid slds-wrap slds-gutters">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Owner" value={ownerName} readonly></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Phone" type="tel" data-field="Phone" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-combobox label="Salutation" options={salutationOptions} data-field="Salutation" onchange={handleChange}></lightning-combobox>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Home Phone" type="tel" data-field="HomePhone" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="First Name" required data-field="FirstName" onchange={handleChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Middle Name" data-field="MiddleName" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Last Name" required data-field="LastName" onchange={handleChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small"></div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Account Name" data-field="AccountName" onchange={handleChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small"></div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Title" data-field="Title" onchange={handleChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Other Phone" type="tel" data-field="OtherPhone" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Department" data-field="Department" onchange={handleChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Fax" type="tel" data-field="Fax" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Birthdate" type="date" data-field="Birthdate" onchange={handleChange}></lightning-input>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Email" type="email" data-field="Email" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-record-picker
+                        label="Reports To"
+                        object-api-name="Contact"
+                        value={reportsToId}
+                        onchange={handleReportsToChange}
+                    ></lightning-record-picker>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Assistant" data-field="AssistantName" onchange={handleChange}></lightning-input>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-record-picker
+                        label="Lead Source"
+                        object-api-name="Lead"
+                        value={leadSourceId}
+                        onchange={handleLeadSourceChange}
+                    ></lightning-record-picker>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-input label="Asst. Phone" type="tel" data-field="AssistantPhone" onchange={handleChange}></lightning-input>
+                </div>
+            </div>
+
+            <!-- Address Information Section -->
+            <div class="section-header">Address Information</div>
+            <div class="slds-grid slds-wrap slds-gutters">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-textarea label="Mailing Street" data-field="MailingStreet" onchange={handleChange}></lightning-textarea>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <lightning-textarea label="Other Street" data-field="OtherStreet" onchange={handleChange}></lightning-textarea>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Mailing City" data-field="MailingCity" onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Mailing State/Province" data-field="MailingState" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Other City" data-field="OtherCity" onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Other State/Province" data-field="OtherState" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Mailing Zip/Postal Code" data-field="MailingPostalCode" onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Mailing Country" data-field="MailingCountry" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                    <div class="slds-grid slds-gutters">
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Other Zip/Postal Code" data-field="OtherPostalCode" onchange={handleChange}></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input label="Other Country" data-field="OtherCountry" onchange={handleChange}></lightning-input>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description Information Section -->
+            <div class="section-header">Description Information</div>
+            <div class="slds-grid slds-wrap slds-gutters">
+                <div class="slds-col slds-size_1-of-1 slds-p-bottom_small">
+                    <lightning-textarea label="Description" data-field="Description" onchange={handleChange}></lightning-textarea>
+                </div>
+            </div>
+
+            <!-- Footer / Buttons -->
+            <div class="slds-m-top_medium slds-text-align_center">
+                <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_small"></lightning-button>
+                <lightning-button variant="brand" label="Save" onclick={handleSave}></lightning-button>
+            </div>
+        </div>
+    </lightning-card>
+</template>

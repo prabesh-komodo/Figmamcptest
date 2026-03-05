@@ -1,0 +1,70 @@
+:host {
+    display: block;
+}
+
+.model-label {
+    font-size: var(--slds-g-font-scale-base, 0.8125rem);
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+    margin-bottom: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.section-container {
+    padding: var(--slds-g-spacing-3, 0.75rem) 0;
+}
+
+/* Fieldset section - semantic grouping */
+.fieldset-section {
+    border: none;
+    margin: 0;
+    padding: 0;
+    min-inline-size: 0;
+}
+
+.fieldset-legend {
+    background-color: var(--slds-g-color-surface-container-2, #f3f3f3);
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+    font-size: var(--slds-g-font-scale-2, 1rem);
+    font-weight: normal;
+    line-height: 1.375;
+    padding: var(--slds-g-spacing-2, 0.5rem) var(--slds-g-spacing-3, 0.75rem);
+    border-radius: var(--slds-g-radius-border-2, 0.5rem);
+    margin-bottom: var(--slds-g-spacing-2, 0.5rem);
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 2rem;
+    display: block;
+}
+
+.group-label {
+    font-size: var(--slds-g-font-scale-1, 0.875rem);
+    font-weight: 600;
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+    line-height: 1.25;
+}
+
+.readonly-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--slds-g-spacing-1, 0.25rem);
+}
+
+.field-label {
+    font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+    font-weight: 600;
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+    line-height: 1.125rem;
+}
+
+.readonly-value {
+    display: flex;
+    align-items: center;
+    min-height: 1.5rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #c9c9c9);
+    padding-bottom: 0.125rem;
+}
+
+.owner-name {
+    font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+    color: var(--slds-g-color-accent-2, #0250d9);
+    line-height: 1.125rem;
+}

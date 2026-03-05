@@ -58,7 +58,26 @@
             <div class="studio-canvas"
                  ondragover={handleCanvasDragOver}
                  ondrop={handleCanvasDrop}>
-                <div class="canvas-container" lwc:dom="manual"></div>
+                <!-- SVG layer for links, grid, temp connectors -->
+                <div class="canvas-svg-container" lwc:dom="manual"></div>
+                <!-- Node overlay: LWC components positioned over SVG, sharing zoom transform -->
+                <div class="nodes-overlay" style={nodesOverlayTransform}
+                     onnodeselect={handleNodeSelectEvent}
+                     onnodedelete={handleNodeDeleteEvent}
+                     onportdragstart={handlePortDragStartEvent}>
+                    <template for:each={displayNodes} for:item="nodeItem">
+                        <c-workflow-node
+                            key={nodeItem.id}
+                            node-data={nodeItem.data}
+                            is-selected={nodeItem.isSelected}
+                            is-connect-target={nodeItem.isConnectTarget}
+                            is-executing={nodeItem.isExecuting}
+                            style={nodeItem.positionStyle}
+                            data-node-id={nodeItem.id}
+                            onclick={handleNodeClick}>
+                        </c-workflow-node>
+                    </template>
+                </div>
                 <!-- Minimap -->
                 <div class="minimap-container" lwc:dom="manual"></div>
                 <!-- Zoom indicator -->
@@ -78,53 +97,57 @@
                             <label class="prop-label">Name</label>
                             <input type="text" class="prop-input" value={selectedNode.label} data-field="label" onchange={handlePropertyChange}/>
                         </div>
-                        <div class="prop-field">
-                            <label class="prop-label">Description</label>
-                            <textarea class="prop-textarea" data-field="description" onchange={handlePropertyChange}>{selectedNode.description}</textarea>
-                        </div>
-                        <template if:true={isSelectedEmail}>
+
+                        <!-- Root-specific fields -->
+                        <template if:true={isSelectedRoot}>
                             <div class="prop-field">
-                                <label class="prop-label">Subject Line</label>
-                                <input type="text" class="prop-input" value={selectedNode.subject} data-field="subject" onchange={handlePropertyChange}/>
+                                <label class="prop-label">Lifecycle</label>
+                                <input type="text" class="prop-input" value={selectedNode.lifecycle} data-field="lifecycle" onchange={handlePropertyChange}/>
                             </div>
                             <div class="prop-field">
-                                <label class="prop-label">Template</label>
-                                <select class="prop-select" data-field="template" onchange={handlePropertyChange}>
-                                    <option value="welcome">Welcome Template</option>
-                                    <option value="followup">Follow-up Template</option>
-                                    <option value="promo">Promotional Template</option>
-                                    <option value="custom">Custom Template</option>
-                                </select>
+                                <label class="prop-label">Criteria Fact</label>
+                                <input type="text" class="prop-input" value={selectedNode.criteriaFact} data-field="criteriaFact" onchange={handlePropertyChange}/>
                             </div>
-                        </template>
-                        <template if:true={isSelectedWait}>
                             <div class="prop-field">
-                                <label class="prop-label">Wait Duration</label>
-                                <div class="prop-row">
-                                    <input type="number" class="prop-input prop-input--sm" value={selectedNode.waitValue} data-field="waitValue" onchange={handlePropertyChange} min="1"/>
-                                    <select class="prop-select prop-select--sm" data-field="waitUnit" onchange={handlePropertyChange}>
-                                        <option value="minutes">Minutes</option>
-                                        <option value="hours">Hours</option>
-                                        <option value="days">Days</option>
-                                        <option value="weeks">Weeks</option>
-                                    </select>
-                                </div>
+                                <label class="prop-label">Entry Criteria (JSON)</label>
+                                <textarea class="prop-textarea prop-textarea--code" data-field="entryCriteria" onchange={handlePropertyChange}>{selectedNode.entryCriteria}</textarea>
+                            </div>
+                            <div class="prop-field prop-field--row">
+                                <label class="prop-label prop-label--inline">Autostart</label>
+                                <input type="checkbox" checked={selectedNode.autostart} data-field="autostart" onchange={handlePropertyChange}/>
+                            </div>
+                            <div class="prop-field prop-field--row">
+                                <label class="prop-label prop-label--inline">Active</label>
+                                <input type="checkbox" checked={selectedNode.isActive} data-field="isActive" onchange={handlePropertyChange}/>
                             </div>
                         </template>
-                        <template if:true={isSelectedCondition}>
+
+                        <!-- Stage-specific fields -->
+                        <template if:true={isSelectedStage}>
                             <div class="prop-field">
-                                <label class="prop-label">Condition Type</label>
-                                <select class="prop-select" data-field="conditionType" onchange={handlePropertyChange}>
-                                    <option value="emailOpened">Email Opened</option>
-                                    <option value="linkClicked">Link Clicked</option>
-                                    <option value="fieldValue">Field Value</option>
-                                    <option value="listMember">List Membership</option>
-                                </select>
+                                <label class="prop-label">Lifecycle State</label>
+                                <input type="text" class="prop-input" value={selectedNode.lifecycleState} data-field="lifecycleState" onchange={handlePropertyChange}/>
+                            </div>
+                            <div class="prop-field">
+                                <label class="prop-label">Custom Label API Name</label>
+                                <input type="text" class="prop-input" value={selectedNode.customLabelApiName} data-field="customLabelApiName" onchange={handlePropertyChange}/>
+                            </div>
+                            <div class="prop-field prop-field--row">
+                                <label class="prop-label prop-label--inline">Allow Manual Transition</label>
+                                <input type="checkbox" checked={selectedNode.allowManualTransition} data-field="allowManualTransition" onchange={handlePropertyChange}/>
+                            </div>
+                            <div class="prop-field prop-field--row">
+                                <label class="prop-label prop-label--inline">Final Stage</label>
+                                <input type="checkbox" checked={selectedNode.isFinalStage} data-field="isFinalStage" onchange={handlePropertyChange}/>
                             </div>
                         </template>
-                        <div class="prop-actions">
-                            <button class="prop-btn prop-btn--danger" onclick={handleDeleteSelectedNode}>Delete Step</button>
-                        </div>
+
+                        <!-- Delete: only for non-root nodes -->
+                        <template if:true={isSelectedDeletable}>
+                            <div class="prop-actions">
+                                <button class="prop-btn prop-btn--danger" onclick={handleDeleteSelectedNode}>Delete Step</button>
+                            </div>
+                        </template>
                     </div>
                 </template>
                 <template if:false={selectedNode}>

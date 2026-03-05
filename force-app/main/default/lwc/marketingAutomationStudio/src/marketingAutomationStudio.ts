@@ -2,148 +2,148 @@ import { LightningElement, track } from 'lwc';
 import { loadScript } from 'lightning/platformResourceLoader';
 import d3Resource from '@salesforce/resourceUrl/d3';
 
-const NODE_W         = 380;
-const CANVAS_W         = 6000;
-const CANVAS_H         = 6000;
-const BASE_LAYER_GAP         = 80;
-const LANE_SPACING         = 16;
-const MIN_SIBLING_GAP_X         = 60;
-const GRID_SIZE         = 20;
+const NODE_W: number = 380;
+const CANVAS_W: number = 6000;
+const CANVAS_H: number = 6000;
+const BASE_LAYER_GAP: number = 80;
+const LANE_SPACING: number = 16;
+const MIN_SIBLING_GAP_X: number = 60;
+const GRID_SIZE: number = 20;
 
-const ACCENT_BLUE         = '#066afe';
-const LINK_COLOR          = '#c0c4cc';
-const CORNER_RADIUS         = 20;
+const ACCENT_BLUE: string = '#066afe';
+const LINK_COLOR: string  = '#c0c4cc';
+const CORNER_RADIUS: number = 20;
 
-const NODE_H_MAP                         = {
+const NODE_H_MAP: Record<string, number> = {
     root:       340,
     stage:      260,
     transition: 100,
 };
 
-function getNodeH(n              )         {
+function getNodeH(n: WorkflowNode): number {
     return NODE_H_MAP[n.nodeType] || 240;
 }
 
-const ICON_COLORS                         = {
+const ICON_COLORS: Record<string, string> = {
     root:       '#1b96ff',
     stage:      '#4bca81',
     transition: '#0d9dda',
 };
 
-const NODE_ICONS                         = {
+const NODE_ICONS: Record<string, string> = {
     root:       '\u26A1',
     stage:      '\uD83D\uDCC4',
     transition: '\uD83D\uDD00',
 };
 
-const NODE_TYPE_LABELS                         = {
+const NODE_TYPE_LABELS: Record<string, string> = {
     root:       'Trigger',
     stage:      'Stage',
     transition: 'Transition',
 };
 
-;                       
-                 
-                     
- 
+interface ActivityItem {
+    name: string;
+    iconName: string;
+}
 
-;                       
-               
-                                              
-                  
-              
-              
-                       
-                          
-                           
-                        
-                       
-                            
-                                
-                                
-                                    
-                           
- 
+interface WorkflowNode {
+    id: string;
+    nodeType: 'root' | 'stage' | 'transition';
+    label: string;
+    x: number;
+    y: number;
+    lifecycle?: string;
+    criteriaFact?: string;
+    entryCriteria?: string;
+    autostart?: boolean;
+    isActive?: boolean;
+    lifecycleState?: string;
+    customLabelApiName?: string;
+    activities?: ActivityItem[];
+    allowManualTransition?: boolean;
+    isFinalStage?: boolean;
+}
 
-;                       
-               
-                   
-                   
-                   
- 
+interface WorkflowLink {
+    id: string;
+    source: string;
+    target: string;
+    label?: string;
+}
 
-;                       
-              
-                   
-                   
-                        
- 
+interface LinkPathInfo {
+    d: string;
+    labelX: number;
+    labelY: number;
+    isLoopback: boolean;
+}
 
-;                            
-                  
-                   
-                       
- 
+interface LinkPortPositions {
+    exitX: number;
+    entryX: number;
+    midYOffset: number;
+}
 
-;                    
-                          
-                          
- 
+interface UndoState {
+    nodes: WorkflowNode[];
+    links: WorkflowLink[];
+}
 
-;                      
-                 
-                 
-                  
-                        
-                      
- 
+interface PaletteItem {
+    type: string;
+    icon: string;
+    label: string;
+    description: string;
+    iconStyle: string;
+}
 
-;                      
-               
-                       
-                        
-                             
-                         
-                          
- 
+interface DisplayNode {
+    id: string;
+    data: WorkflowNode;
+    isSelected: boolean;
+    isConnectTarget: boolean;
+    isExecuting: boolean;
+    positionStyle: string;
+}
 
-let _idCounter         = 100;
-function nextId()         { return 'n' + (++_idCounter); }
+let _idCounter: number = 100;
+function nextId(): string { return 'n' + (++_idCounter); }
 
 export default class MarketingAutomationStudio extends LightningElement {
-    _d3                  = null;
-    _loadStarted          = false;
-    _svg                     = null;
-    _zoomGroup                     = null;
-    _zoomBehavior                        = null;
-    _currentTransform                        = null;
-    _minimapSvg                     = null;
-    _minimapViewport                     = null;
+    _d3: D3Static | null = null;
+    _loadStarted: boolean = false;
+    _svg: D3Selection | null = null;
+    _zoomGroup: D3Selection | null = null;
+    _zoomBehavior: D3ZoomBehavior | null = null;
+    _currentTransform: D3ZoomIdentity | null = null;
+    _minimapSvg: D3Selection | null = null;
+    _minimapViewport: D3Selection | null = null;
 
-    @track _nodes                 = [];
-    @track _links                 = [];
-    @track selectedNode                      = null;
-    @track zoomLevel         = 1;
-    @track _overlayTransformCss         = '';
-    @track _connectTargetId                = null;
-    @track _executingNodeIds              = new Set();
+    @track _nodes: WorkflowNode[] = [];
+    @track _links: WorkflowLink[] = [];
+    @track selectedNode: WorkflowNode | null = null;
+    @track zoomLevel: number = 1;
+    @track _overlayTransformCss: string = '';
+    @track _connectTargetId: string | null = null;
+    @track _executingNodeIds: Set<string> = new Set();
 
-    _undoStack              = [];
-    _redoStack              = [];
-    _animationRunning          = false;
-    _draggedPaletteType                = null;
+    _undoStack: UndoState[] = [];
+    _redoStack: UndoState[] = [];
+    _animationRunning: boolean = false;
+    _draggedPaletteType: string | null = null;
 
     /* ===================== Getters for Template ===================== */
 
-    get paletteItems()                {
+    get paletteItems(): PaletteItem[] {
         return [
             { type: 'stage',      icon: NODE_ICONS.stage,      label: 'Stage',      description: 'Add a workflow stage',  iconStyle: `background:${ICON_COLORS.stage};color:#fff` },
             { type: 'transition', icon: NODE_ICONS.transition,  label: 'Transition', description: 'Connect two stages',   iconStyle: `background:${ICON_COLORS.transition};color:#fff` },
         ];
     }
 
-    get displayNodes()                {
-        return this._nodes.map((n              ) => ({
+    get displayNodes(): DisplayNode[] {
+        return this._nodes.map((n: WorkflowNode) => ({
             id: n.id,
             data: n,
             isSelected: !!(this.selectedNode && this.selectedNode.id === n.id),
@@ -153,49 +153,49 @@ export default class MarketingAutomationStudio extends LightningElement {
         }));
     }
 
-    get nodesOverlayTransform()         {
+    get nodesOverlayTransform(): string {
         return this._overlayTransformCss;
     }
 
-    get zoomLabel()         { return Math.round(this.zoomLevel * 100) + '%'; }
+    get zoomLabel(): string { return Math.round(this.zoomLevel * 100) + '%'; }
 
-    get propertyPanelClass()         {
+    get propertyPanelClass(): string {
         return 'studio-property-panel' + (this.selectedNode ? ' studio-property-panel--open' : '');
     }
 
-    get selectedNodeIconStyle()         {
+    get selectedNodeIconStyle(): string {
         if (!this.selectedNode) return '';
-        const c         = ICON_COLORS[this.selectedNode.nodeType] || ICON_COLORS.stage;
+        const c: string = ICON_COLORS[this.selectedNode.nodeType] || ICON_COLORS.stage;
         return `background:${c};color:#fff`;
     }
 
-    get selectedNodeIcon()         {
+    get selectedNodeIcon(): string {
         return this.selectedNode ? (NODE_ICONS[this.selectedNode.nodeType] || '') : '';
     }
 
-    get selectedNodeTypeLabel()         {
+    get selectedNodeTypeLabel(): string {
         return this.selectedNode ? (NODE_TYPE_LABELS[this.selectedNode.nodeType] || 'Step') : '';
     }
 
-    get isSelectedRoot()                { return !!(this.selectedNode && this.selectedNode.nodeType === 'root'); }
-    get isSelectedStage()               { return !!(this.selectedNode && this.selectedNode.nodeType === 'stage'); }
-    get isSelectedTransition()          { return !!(this.selectedNode && this.selectedNode.nodeType === 'transition'); }
-    get isSelectedDeletable()           { return !!(this.selectedNode && this.selectedNode.nodeType !== 'root'); }
+    get isSelectedRoot(): boolean       { return !!(this.selectedNode && this.selectedNode.nodeType === 'root'); }
+    get isSelectedStage(): boolean      { return !!(this.selectedNode && this.selectedNode.nodeType === 'stage'); }
+    get isSelectedTransition(): boolean { return !!(this.selectedNode && this.selectedNode.nodeType === 'transition'); }
+    get isSelectedDeletable(): boolean  { return !!(this.selectedNode && this.selectedNode.nodeType !== 'root'); }
 
     /* ===================== Lifecycle ===================== */
 
-    renderedCallback()       {
+    renderedCallback(): void {
         if (this._loadStarted) return;
         this._loadStarted = true;
         this._loadAndRender();
     }
 
-    disconnectedCallback()       {
+    disconnectedCallback(): void {
         this._svg = null;
     }
 
-    async _loadAndRender()                {
-        const container                 = this.template.querySelector('.canvas-svg-container');
+    async _loadAndRender(): Promise<void> {
+        const container: Element | null = this.template.querySelector('.canvas-svg-container');
         if (!container) return;
 
         try {
@@ -216,7 +216,7 @@ export default class MarketingAutomationStudio extends LightningElement {
         }
     }
 
-    _initSampleWorkflow()       {
+    _initSampleWorkflow(): void {
         this._nodes = [
             {
                 id: 'n1', nodeType: 'root', label: 'Send for Request Submitted',
@@ -266,35 +266,35 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Auto Layout (Tree, dynamic subtree widths) ===================== */
 
-    _autoLayout()       {
-        const nodeMap                            = new Map(this._nodes.map(n => [n.id, n]));
-        const childrenMap                        = new Map();
-        const hasParent              = new Set();
+    _autoLayout(): void {
+        const nodeMap: Map<string, WorkflowNode> = new Map(this._nodes.map(n => [n.id, n]));
+        const childrenMap: Map<string, string[]> = new Map();
+        const hasParent: Set<string> = new Set();
 
-        this._links.forEach((l              ) => {
+        this._links.forEach((l: WorkflowLink) => {
             if (!childrenMap.has(l.source)) childrenMap.set(l.source, []);
-            childrenMap.get(l.source) .push(l.target);
+            childrenMap.get(l.source)!.push(l.target);
             hasParent.add(l.target);
         });
 
-        const roots                 = this._nodes.filter(n => !hasParent.has(n.id));
+        const roots: WorkflowNode[] = this._nodes.filter(n => !hasParent.has(n.id));
         if (roots.length === 0 && this._nodes.length > 0) roots.push(this._nodes[0]);
 
-        const subtreeWidths                      = new Map();
-        const visited              = new Set();
+        const subtreeWidths: Map<string, number> = new Map();
+        const visited: Set<string> = new Set();
 
-        const computeWidth = (nodeId        )         => {
+        const computeWidth = (nodeId: string): number => {
             if (visited.has(nodeId)) return NODE_W;
             visited.add(nodeId);
-            const children           = childrenMap.get(nodeId) || [];
+            const children: string[] = childrenMap.get(nodeId) || [];
             if (children.length === 0) {
                 subtreeWidths.set(nodeId, NODE_W);
                 return NODE_W;
             }
-            const childWidths           = children.map(cId => computeWidth(cId));
-            const totalChildW         = childWidths.reduce((sum, w) => sum + w, 0)
+            const childWidths: number[] = children.map(cId => computeWidth(cId));
+            const totalChildW: number = childWidths.reduce((sum, w) => sum + w, 0)
                 + (children.length - 1) * MIN_SIBLING_GAP_X;
-            const width         = Math.max(NODE_W, totalChildW);
+            const width: number = Math.max(NODE_W, totalChildW);
             subtreeWidths.set(nodeId, width);
             return width;
         };
@@ -302,85 +302,85 @@ export default class MarketingAutomationStudio extends LightningElement {
         roots.forEach(r => computeWidth(r.id));
         this._nodes.forEach(n => { if (!visited.has(n.id)) computeWidth(n.id); });
 
-        const layerMaxH                      = new Map();
-        const nodeDepth                      = new Map();
-        const visitedDepth              = new Set();
+        const layerMaxH: Map<number, number> = new Map();
+        const nodeDepth: Map<string, number> = new Map();
+        const visitedDepth: Set<string> = new Set();
 
-        const assignDepth = (nodeId        , depth        )       => {
+        const assignDepth = (nodeId: string, depth: number): void => {
             if (visitedDepth.has(nodeId)) return;
             visitedDepth.add(nodeId);
             nodeDepth.set(nodeId, depth);
-            const node                           = nodeMap.get(nodeId);
+            const node: WorkflowNode | undefined = nodeMap.get(nodeId);
             if (node) {
-                const h         = getNodeH(node);
-                const cur         = layerMaxH.get(depth) || 0;
+                const h: number = getNodeH(node);
+                const cur: number = layerMaxH.get(depth) || 0;
                 if (h > cur) layerMaxH.set(depth, h);
             }
-            const children           = childrenMap.get(nodeId) || [];
+            const children: string[] = childrenMap.get(nodeId) || [];
             children.forEach(cId => assignDepth(cId, depth + 1));
         };
 
         roots.forEach(r => assignDepth(r.id, 0));
         this._nodes.forEach(n => { if (!visitedDepth.has(n.id)) assignDepth(n.id, layerMaxH.size); });
 
-        const crossingCount                      = new Map();
-        this._links.forEach((l              ) => {
-            const srcDepth                     = nodeDepth.get(l.source);
-            const tgtDepth                     = nodeDepth.get(l.target);
+        const crossingCount: Map<number, number> = new Map();
+        this._links.forEach((l: WorkflowLink) => {
+            const srcDepth: number | undefined = nodeDepth.get(l.source);
+            const tgtDepth: number | undefined = nodeDepth.get(l.target);
             if (srcDepth === undefined || tgtDepth === undefined) return;
-            const minD         = Math.min(srcDepth, tgtDepth);
-            const maxD         = Math.max(srcDepth, tgtDepth);
-            for (let d         = minD; d < maxD; d++) {
+            const minD: number = Math.min(srcDepth, tgtDepth);
+            const maxD: number = Math.max(srcDepth, tgtDepth);
+            for (let d: number = minD; d < maxD; d++) {
                 crossingCount.set(d, (crossingCount.get(d) || 0) + 1);
             }
         });
 
-        const layerY                      = new Map();
-        let currentY         = 200;
-        const maxDepth         = Math.max(...layerMaxH.keys(), 0);
-        for (let d         = 0; d <= maxDepth; d++) {
+        const layerY: Map<number, number> = new Map();
+        let currentY: number = 200;
+        const maxDepth: number = Math.max(...layerMaxH.keys(), 0);
+        for (let d: number = 0; d <= maxDepth; d++) {
             layerY.set(d, currentY);
-            const crossings         = crossingCount.get(d) || 0;
-            const extraLanes         = Math.max(0, crossings - 1);
-            const dynamicGap         = BASE_LAYER_GAP + extraLanes * LANE_SPACING;
+            const crossings: number = crossingCount.get(d) || 0;
+            const extraLanes: number = Math.max(0, crossings - 1);
+            const dynamicGap: number = BASE_LAYER_GAP + extraLanes * LANE_SPACING;
             currentY += (layerMaxH.get(d) || 240) + dynamicGap;
         }
 
-        const positioned              = new Set();
+        const positioned: Set<string> = new Set();
 
-        const positionSubtree = (nodeId        , centerX        )       => {
+        const positionSubtree = (nodeId: string, centerX: number): void => {
             if (positioned.has(nodeId)) return;
             positioned.add(nodeId);
-            const node                           = nodeMap.get(nodeId);
+            const node: WorkflowNode | undefined = nodeMap.get(nodeId);
             if (!node) return;
 
-            const depth         = nodeDepth.get(nodeId) || 0;
+            const depth: number = nodeDepth.get(nodeId) || 0;
             node.x = centerX - NODE_W / 2;
             node.y = layerY.get(depth) || 200;
 
-            const children           = childrenMap.get(nodeId) || [];
+            const children: string[] = childrenMap.get(nodeId) || [];
             if (children.length === 0) return;
 
-            const childWidths           = children.map(cId => subtreeWidths.get(cId) || NODE_W);
-            const totalChildW         = childWidths.reduce((sum, w) => sum + w, 0)
+            const childWidths: number[] = children.map(cId => subtreeWidths.get(cId) || NODE_W);
+            const totalChildW: number = childWidths.reduce((sum, w) => sum + w, 0)
                 + (children.length - 1) * MIN_SIBLING_GAP_X;
 
-            let childX         = centerX - totalChildW / 2;
-            children.forEach((cId        , i        ) => {
-                const cw         = childWidths[i];
-                const childCenter         = childX + cw / 2;
+            let childX: number = centerX - totalChildW / 2;
+            children.forEach((cId: string, i: number) => {
+                const cw: number = childWidths[i];
+                const childCenter: number = childX + cw / 2;
                 positionSubtree(cId, childCenter);
                 childX += cw + MIN_SIBLING_GAP_X;
             });
         };
 
-        const rootWidths           = roots.map(r => subtreeWidths.get(r.id) || NODE_W);
-        const totalRootW         = rootWidths.reduce((sum, w) => sum + w, 0)
+        const rootWidths: number[] = roots.map(r => subtreeWidths.get(r.id) || NODE_W);
+        const totalRootW: number = rootWidths.reduce((sum, w) => sum + w, 0)
             + (roots.length > 1 ? (roots.length - 1) * MIN_SIBLING_GAP_X : 0);
-        let rootX         = CANVAS_W / 2 - totalRootW / 2;
+        let rootX: number = CANVAS_W / 2 - totalRootW / 2;
 
-        roots.forEach((r              , i        ) => {
-            const rw         = rootWidths[i];
+        roots.forEach((r: WorkflowNode, i: number) => {
+            const rw: number = rootWidths[i];
             positionSubtree(r.id, rootX + rw / 2);
             rootX += rw + MIN_SIBLING_GAP_X;
         });
@@ -392,61 +392,61 @@ export default class MarketingAutomationStudio extends LightningElement {
         });
     }
 
-    _computeLinkPorts()                                 {
-        const ports                                 = new Map();
-        const outgoing                              = new Map();
-        const incoming                              = new Map();
-        const nodeMap                            = new Map(this._nodes.map(n => [n.id, n]));
+    _computeLinkPorts(): Map<string, LinkPortPositions> {
+        const ports: Map<string, LinkPortPositions> = new Map();
+        const outgoing: Map<string, WorkflowLink[]> = new Map();
+        const incoming: Map<string, WorkflowLink[]> = new Map();
+        const nodeMap: Map<string, WorkflowNode> = new Map(this._nodes.map(n => [n.id, n]));
 
-        this._links.forEach((l              ) => {
+        this._links.forEach((l: WorkflowLink) => {
             if (!outgoing.has(l.source)) outgoing.set(l.source, []);
-            outgoing.get(l.source) .push(l);
+            outgoing.get(l.source)!.push(l);
             if (!incoming.has(l.target)) incoming.set(l.target, []);
-            incoming.get(l.target) .push(l);
+            incoming.get(l.target)!.push(l);
         });
 
-        const defaultPort = (center        )                    => ({ exitX: center, entryX: center, midYOffset: 0 });
+        const defaultPort = (center: number): LinkPortPositions => ({ exitX: center, entryX: center, midYOffset: 0 });
 
         const spreadPorts = (
-            links                ,
-            node              ,
-            sortByKey                             ,
-            assignField                    
-              ) => {
-            const center         = node.x + NODE_W / 2;
+            links: WorkflowLink[],
+            node: WorkflowNode,
+            sortByKey: (l: WorkflowLink) => number,
+            assignField: 'exitX' | 'entryX'
+        ): void => {
+            const center: number = node.x + NODE_W / 2;
             if (links.length === 1) {
-                const p                    = ports.get(links[0].id) || defaultPort(center);
+                const p: LinkPortPositions = ports.get(links[0].id) || defaultPort(center);
                 p[assignField] = center;
                 ports.set(links[0].id, p);
                 return;
             }
-            const sorted                 = [...links].sort((a, b) => sortByKey(a) - sortByKey(b));
-            const margin         = 60;
-            const startX         = node.x + margin;
-            const endX         = node.x + NODE_W - margin;
-            const span         = endX - startX;
-            sorted.forEach((link              , i        ) => {
-                const t         = i / (sorted.length - 1);
-                const p                    = ports.get(link.id) || defaultPort(center);
+            const sorted: WorkflowLink[] = [...links].sort((a, b) => sortByKey(a) - sortByKey(b));
+            const margin: number = 60;
+            const startX: number = node.x + margin;
+            const endX: number = node.x + NODE_W - margin;
+            const span: number = endX - startX;
+            sorted.forEach((link: WorkflowLink, i: number) => {
+                const t: number = i / (sorted.length - 1);
+                const p: LinkPortPositions = ports.get(link.id) || defaultPort(center);
                 p[assignField] = startX + t * span;
                 ports.set(link.id, p);
             });
         };
 
-        outgoing.forEach((links                , srcId        ) => {
-            const src                           = nodeMap.get(srcId);
+        outgoing.forEach((links: WorkflowLink[], srcId: string) => {
+            const src: WorkflowNode | undefined = nodeMap.get(srcId);
             if (!src) return;
-            spreadPorts(links, src, (l              ) => {
-                const t                           = nodeMap.get(l.target);
+            spreadPorts(links, src, (l: WorkflowLink) => {
+                const t: WorkflowNode | undefined = nodeMap.get(l.target);
                 return t ? t.x : 0;
             }, 'exitX');
         });
 
-        incoming.forEach((links                , tgtId        ) => {
-            const tgt                           = nodeMap.get(tgtId);
+        incoming.forEach((links: WorkflowLink[], tgtId: string) => {
+            const tgt: WorkflowNode | undefined = nodeMap.get(tgtId);
             if (!tgt) return;
-            spreadPorts(links, tgt, (l              ) => {
-                const s                           = nodeMap.get(l.source);
+            spreadPorts(links, tgt, (l: WorkflowLink) => {
+                const s: WorkflowNode | undefined = nodeMap.get(l.source);
                 return s ? s.x : 0;
             }, 'entryX');
         });
@@ -457,40 +457,40 @@ export default class MarketingAutomationStudio extends LightningElement {
     }
 
     _staggerOverlappingLanes(
-        ports                                ,
-        nodeMap                           
-    )       {
-                           
-                             
-                                
-                         
-                         
-                              
-         
+        ports: Map<string, LinkPortPositions>,
+        nodeMap: Map<string, WorkflowNode>
+    ): void {
+        interface BusInfo {
+            sourceId: string;
+            naturalMidY: number;
+            xMin: number;
+            xMax: number;
+            linkIds: string[];
+        }
 
-        const sourceGroups                              = new Map();
-        this._links.forEach((l              ) => {
-            const src                           = nodeMap.get(l.source);
-            const tgt                           = nodeMap.get(l.target);
+        const sourceGroups: Map<string, WorkflowLink[]> = new Map();
+        this._links.forEach((l: WorkflowLink) => {
+            const src: WorkflowNode | undefined = nodeMap.get(l.source);
+            const tgt: WorkflowNode | undefined = nodeMap.get(l.target);
             if (!src || !tgt) return;
             if (tgt.y <= src.y + getNodeH(src) + 30) return;
             if (!sourceGroups.has(l.source)) sourceGroups.set(l.source, []);
-            sourceGroups.get(l.source) .push(l);
+            sourceGroups.get(l.source)!.push(l);
         });
 
-        const buses            = [];
-        sourceGroups.forEach((links                , sourceId        ) => {
-            const src               = nodeMap.get(sourceId) ;
-            const y1         = src.y + getNodeH(src);
+        const buses: BusInfo[] = [];
+        sourceGroups.forEach((links: WorkflowLink[], sourceId: string) => {
+            const src: WorkflowNode = nodeMap.get(sourceId)!;
+            const y1: number = src.y + getNodeH(src);
 
-            let xMin         = Infinity;
-            let xMax         = -Infinity;
-            let sumY2         = 0;
-            const linkIds           = [];
+            let xMin: number = Infinity;
+            let xMax: number = -Infinity;
+            let sumY2: number = 0;
+            const linkIds: string[] = [];
 
-            links.forEach((l              ) => {
-                const tgt                           = nodeMap.get(l.target);
-                const p                                = ports.get(l.id);
+            links.forEach((l: WorkflowLink) => {
+                const tgt: WorkflowNode | undefined = nodeMap.get(l.target);
+                const p: LinkPortPositions | undefined = ports.get(l.id);
                 if (!tgt || !p) return;
                 xMin = Math.min(xMin, p.exitX, p.entryX);
                 xMax = Math.max(xMax, p.exitX, p.entryX);
@@ -499,7 +499,7 @@ export default class MarketingAutomationStudio extends LightningElement {
             });
 
             if (linkIds.length === 0) return;
-            const avgY2         = sumY2 / linkIds.length;
+            const avgY2: number = sumY2 / linkIds.length;
             buses.push({
                 sourceId,
                 naturalMidY: (y1 + avgY2) / 2,
@@ -513,21 +513,21 @@ export default class MarketingAutomationStudio extends LightningElement {
 
         buses.sort((a, b) => a.naturalMidY - b.naturalMidY);
 
-        const MID_Y_THRESHOLD         = 40;
-        const BUS_GAP         = 14;
-        const assigned              = new Set();
+        const MID_Y_THRESHOLD: number = 40;
+        const BUS_GAP: number = 14;
+        const assigned: Set<string> = new Set();
 
-        for (let i         = 0; i < buses.length; i++) {
+        for (let i: number = 0; i < buses.length; i++) {
             if (assigned.has(buses[i].sourceId)) continue;
 
-            const cluster            = [buses[i]];
-            for (let j         = i + 1; j < buses.length; j++) {
+            const cluster: BusInfo[] = [buses[i]];
+            for (let j: number = i + 1; j < buses.length; j++) {
                 if (assigned.has(buses[j].sourceId)) continue;
                 if (Math.abs(buses[j].naturalMidY - buses[i].naturalMidY) > MID_Y_THRESHOLD) break;
 
-                const candidate          = buses[j];
-                const overlaps          = cluster.some(
-                    (c         ) => c.xMax > candidate.xMin && candidate.xMax > c.xMin
+                const candidate: BusInfo = buses[j];
+                const overlaps: boolean = cluster.some(
+                    (c: BusInfo) => c.xMax > candidate.xMin && candidate.xMax > c.xMin
                 );
                 if (overlaps) {
                     cluster.push(candidate);
@@ -536,11 +536,11 @@ export default class MarketingAutomationStudio extends LightningElement {
 
             if (cluster.length > 1) {
                 cluster.sort((a, b) => a.xMin - b.xMin);
-                const totalSpread         = (cluster.length - 1) * BUS_GAP;
-                cluster.forEach((bus         , idx        ) => {
-                    const offset         = -totalSpread / 2 + idx * BUS_GAP;
-                    bus.linkIds.forEach((lid        ) => {
-                        const p                                = ports.get(lid);
+                const totalSpread: number = (cluster.length - 1) * BUS_GAP;
+                cluster.forEach((bus: BusInfo, idx: number) => {
+                    const offset: number = -totalSpread / 2 + idx * BUS_GAP;
+                    bus.linkIds.forEach((lid: string) => {
+                        const p: LinkPortPositions | undefined = ports.get(lid);
                         if (p) p.midYOffset = offset;
                     });
                     assigned.add(bus.sourceId);
@@ -551,18 +551,18 @@ export default class MarketingAutomationStudio extends LightningElement {
         }
     }
 
-    _buildLinkPath(src              , tgt              , portPos                    )               {
-        const srcH         = getNodeH(src);
-        const tgtH         = getNodeH(tgt);
-        const x1         = portPos ? portPos.exitX : src.x + NODE_W / 2;
-        const y1         = src.y + srcH;
-        const x2         = portPos ? portPos.entryX : tgt.x + NODE_W / 2;
-        const y2         = tgt.y;
+    _buildLinkPath(src: WorkflowNode, tgt: WorkflowNode, portPos?: LinkPortPositions): LinkPathInfo {
+        const srcH: number = getNodeH(src);
+        const tgtH: number = getNodeH(tgt);
+        const x1: number = portPos ? portPos.exitX : src.x + NODE_W / 2;
+        const y1: number = src.y + srcH;
+        const x2: number = portPos ? portPos.entryX : tgt.x + NODE_W / 2;
+        const y2: number = tgt.y;
 
-        const isLoopback          = y2 <= y1 + 30;
+        const isLoopback: boolean = y2 <= y1 + 30;
 
         if (!isLoopback) {
-            const midYOff         = portPos ? portPos.midYOffset : 0;
+            const midYOff: number = portPos ? portPos.midYOffset : 0;
 
             if (Math.abs(x1 - x2) < 2) {
                 return {
@@ -573,14 +573,14 @@ export default class MarketingAutomationStudio extends LightningElement {
                 };
             }
 
-            const midY         = (y1 + y2) / 2 + midYOff;
-            const maxR         = Math.min(
+            const midY: number = (y1 + y2) / 2 + midYOff;
+            const maxR: number = Math.min(
                 Math.abs(midY - y1),
                 Math.abs(y2 - midY),
                 Math.abs(x2 - x1) / 2
             );
-            const r         = Math.min(CORNER_RADIUS, maxR);
-            const sx         = x2 > x1 ? 1 : -1;
+            const r: number = Math.min(CORNER_RADIUS, maxR);
+            const sx: number = x2 > x1 ? 1 : -1;
 
             return {
                 d: [
@@ -597,17 +597,17 @@ export default class MarketingAutomationStudio extends LightningElement {
             };
         }
 
-        const rightSrc         = src.x + NODE_W;
-        const sy         = src.y + srcH / 2;
-        const rightTgt         = tgt.x + NODE_W;
-        const ty         = tgt.y + tgtH / 2;
+        const rightSrc: number = src.x + NODE_W;
+        const sy: number = src.y + srcH / 2;
+        const rightTgt: number = tgt.x + NODE_W;
+        const ty: number = tgt.y + tgtH / 2;
 
-        const loopOff         = Math.max(60, Math.min(Math.abs(sy - ty) * 0.5 + 40, 160));
-        const farX         = Math.max(rightSrc, rightTgt) + loopOff;
-        const vertAvail         = Math.abs(sy - ty);
-        const maxR         = vertAvail > 0 ? Math.min(CORNER_RADIUS, vertAvail / 2) : CORNER_RADIUS;
-        const r         = Math.min(CORNER_RADIUS, maxR, loopOff);
-        const dirY         = ty > sy ? 1 : -1;
+        const loopOff: number = Math.max(60, Math.min(Math.abs(sy - ty) * 0.5 + 40, 160));
+        const farX: number = Math.max(rightSrc, rightTgt) + loopOff;
+        const vertAvail: number = Math.abs(sy - ty);
+        const maxR: number = vertAvail > 0 ? Math.min(CORNER_RADIUS, vertAvail / 2) : CORNER_RADIUS;
+        const r: number = Math.min(CORNER_RADIUS, maxR, loopOff);
+        const dirY: number = ty > sy ? 1 : -1;
 
         if (vertAvail < 2) {
             return {
@@ -635,18 +635,18 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Canvas Init ===================== */
 
-    _initCanvas(container         )       {
-        const d3           = this._d3 ;
+    _initCanvas(container: Element): void {
+        const d3: D3Static = this._d3!;
 
         while (container.firstChild) container.removeChild(container.firstChild);
 
-        const svg              = d3.select(container                      )
+        const svg: D3Selection = d3.select(container as unknown as Element)
             .append('svg')
             .attr('class', 'workflow-canvas')
             .attr('width', '100%')
             .attr('height', '100%');
 
-        const defs              = svg.append('defs');
+        const defs: D3Selection = svg.append('defs');
 
         defs.append('marker')
             .attr('id', 'mas-arrow')
@@ -672,7 +672,7 @@ export default class MarketingAutomationStudio extends LightningElement {
             .attr('orient', 'auto')
             .append('path').attr('d', 'M0,1 L9,5 L0,9 Z').attr('fill', ACCENT_BLUE);
 
-        const gridPattern              = defs.append('pattern')
+        const gridPattern: D3Selection = defs.append('pattern')
             .attr('id', 'mas-grid')
             .attr('width', GRID_SIZE).attr('height', GRID_SIZE)
             .attr('patternUnits', 'userSpaceOnUse');
@@ -682,7 +682,7 @@ export default class MarketingAutomationStudio extends LightningElement {
             .attr('stroke', '#e8e8e8')
             .attr('stroke-width', 0.5);
 
-        const zoomGroup              = svg.append('g').attr('class', 'zoom-group');
+        const zoomGroup: D3Selection = svg.append('g').attr('class', 'zoom-group');
 
         zoomGroup.append('rect')
             .attr('class', 'canvas-bg')
@@ -692,10 +692,10 @@ export default class MarketingAutomationStudio extends LightningElement {
         zoomGroup.append('g').attr('class', 'links-layer');
         zoomGroup.append('g').attr('class', 'temp-link-layer');
 
-        const zoom                 = d3.zoom()
+        const zoom: D3ZoomBehavior = d3.zoom()
             .scaleExtent([0.1, 3])
-            .on('zoom', (event             ) => {
-                zoomGroup.attr('transform', event.transform                     );
+            .on('zoom', (event: D3ZoomEvent) => {
+                zoomGroup.attr('transform', event.transform as unknown as string);
                 this._currentTransform = event.transform;
                 this.zoomLevel = event.transform.k;
                 this._syncOverlayTransform(event.transform);
@@ -714,36 +714,36 @@ export default class MarketingAutomationStudio extends LightningElement {
         this._syncOverlayTransform(d3.zoomIdentity);
     }
 
-    _syncOverlayTransform(t                )       {
+    _syncOverlayTransform(t: D3ZoomIdentity): void {
         this._overlayTransformCss = `transform:translate(${t.x}px,${t.y}px) scale(${t.k});transform-origin:0 0`;
     }
 
     /* ===================== Link Rendering (SVG only) ===================== */
 
-    _renderLinks()       {
-        const d3           = this._d3 ;
+    _renderLinks(): void {
+        const d3: D3Static = this._d3!;
         if (!this._zoomGroup) return;
 
         const self = this;
-        const nodeMap                            = new Map(this._nodes.map(n => [n.id, n]));
-        const linkPorts                                 = this._computeLinkPorts();
+        const nodeMap: Map<string, WorkflowNode> = new Map(this._nodes.map(n => [n.id, n]));
+        const linkPorts: Map<string, LinkPortPositions> = this._computeLinkPorts();
 
-        const linksLayer              = this._zoomGroup.select('.links-layer');
+        const linksLayer: D3Selection = this._zoomGroup.select('.links-layer');
         linksLayer.selectAll('*').remove();
 
-        const linkGroups              = linksLayer.selectAll('.mas-link-group')
-            .data(this._links             , (d         ) => (d                ).id)
+        const linkGroups: D3Selection = linksLayer.selectAll('.mas-link-group')
+            .data(this._links as unknown[], (d: unknown) => (d as WorkflowLink).id)
             .join('g')
             .attr('class', 'mas-link-group');
 
-        linkGroups.each(function(                  d         ) {
-            const link = d                ;
-            const g              = d3.select(this);
-            const src                           = nodeMap.get(link.source);
-            const tgt                           = nodeMap.get(link.target);
+        linkGroups.each(function(this: SVGElement, d: unknown) {
+            const link = d as WorkflowLink;
+            const g: D3Selection = d3.select(this);
+            const src: WorkflowNode | undefined = nodeMap.get(link.source);
+            const tgt: WorkflowNode | undefined = nodeMap.get(link.target);
             if (!src || !tgt) return;
 
-            const pathInfo               = self._buildLinkPath(src, tgt, linkPorts.get(link.id));
+            const pathInfo: LinkPathInfo = self._buildLinkPath(src, tgt, linkPorts.get(link.id));
 
             g.append('path')
                 .attr('class', 'mas-link' + (pathInfo.isLoopback ? ' mas-link--loopback' : ''))
@@ -759,9 +759,9 @@ export default class MarketingAutomationStudio extends LightningElement {
             }
 
             if (link.label) {
-                const offsetX         = link.label === 'Yes' ? -28 : 28;
-                const lx         = pathInfo.labelX + (pathInfo.isLoopback ? 10 : offsetX);
-                const ly         = pathInfo.labelY;
+                const offsetX: number = link.label === 'Yes' ? -28 : 28;
+                const lx: number = pathInfo.labelX + (pathInfo.isLoopback ? 10 : offsetX);
+                const ly: number = pathInfo.labelY;
 
                 g.append('rect')
                     .attr('x', lx - 18)
@@ -789,63 +789,63 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Node Selection ===================== */
 
-    _selectNode(node                     )       {
+    _selectNode(node: WorkflowNode | null): void {
         this.selectedNode = node ? { ...node } : null;
     }
 
     /* ===================== Node Events from Child Component ===================== */
 
-    handleNodeClick(event       )       {
+    handleNodeClick(event: Event): void {
         event.stopPropagation();
-        const target = event.currentTarget               ;
-        const nodeId                     = target.dataset.nodeId;
+        const target = event.currentTarget as HTMLElement;
+        const nodeId: string | undefined = target.dataset.nodeId;
         if (!nodeId) return;
-        const node                           = this._nodes.find(n => n.id === nodeId);
+        const node: WorkflowNode | undefined = this._nodes.find(n => n.id === nodeId);
         if (node) this._selectNode(node);
     }
 
-    handleNodeSelectEvent(event             )       {
-        const nodeId         = event.detail.nodeId;
-        const node                           = this._nodes.find(n => n.id === nodeId);
+    handleNodeSelectEvent(event: CustomEvent): void {
+        const nodeId: string = event.detail.nodeId;
+        const node: WorkflowNode | undefined = this._nodes.find(n => n.id === nodeId);
         if (node) this._selectNode(node);
     }
 
-    handleNodeDeleteEvent(event             )       {
-        const nodeId         = event.detail.nodeId;
+    handleNodeDeleteEvent(event: CustomEvent): void {
+        const nodeId: string = event.detail.nodeId;
         if (nodeId) this._deleteNode(nodeId);
     }
 
-    handlePortDragStartEvent(event             )       {
+    handlePortDragStartEvent(event: CustomEvent): void {
         const { nodeId, clientX, clientY } = event.detail;
-        const node                           = this._nodes.find(n => n.id === nodeId);
+        const node: WorkflowNode | undefined = this._nodes.find(n => n.id === nodeId);
         if (!node) return;
-        this._beginPortDrag({ clientX, clientY }              , node);
+        this._beginPortDrag({ clientX, clientY } as MouseEvent, node);
     }
 
     /* ===================== Delete Node ===================== */
 
-    _deleteNode(nodeId        )       {
-        const node                           = this._nodes.find(n => n.id === nodeId);
+    _deleteNode(nodeId: string): void {
+        const node: WorkflowNode | undefined = this._nodes.find(n => n.id === nodeId);
         if (!node || node.nodeType === 'root') return;
 
         this._pushUndo();
 
         if (node.nodeType === 'stage') {
-            const attachedTransitionIds           = [];
+            const attachedTransitionIds: string[] = [];
             this._links.forEach(l => {
-                const otherId         = l.source === nodeId ? l.target : (l.target === nodeId ? l.source : '');
+                const otherId: string = l.source === nodeId ? l.target : (l.target === nodeId ? l.source : '');
                 if (!otherId) return;
-                const other                           = this._nodes.find(n => n.id === otherId);
+                const other: WorkflowNode | undefined = this._nodes.find(n => n.id === otherId);
                 if (other && other.nodeType === 'transition') {
                     attachedTransitionIds.push(other.id);
                 }
             });
-            const removeIds              = new Set([nodeId, ...attachedTransitionIds]);
+            const removeIds: Set<string> = new Set([nodeId, ...attachedTransitionIds]);
             this._links = this._links.filter(l => !removeIds.has(l.source) && !removeIds.has(l.target));
             this._nodes = this._nodes.filter(n => !removeIds.has(n.id));
         } else {
-            const inLinks                 = this._links.filter(l => l.target === nodeId);
-            const outLinks                 = this._links.filter(l => l.source === nodeId);
+            const inLinks: WorkflowLink[] = this._links.filter(l => l.target === nodeId);
+            const outLinks: WorkflowLink[] = this._links.filter(l => l.source === nodeId);
             this._links = this._links.filter(l => l.source !== nodeId && l.target !== nodeId);
             if (inLinks.length === 1 && outLinks.length === 1) {
                 this._links.push({
@@ -866,17 +866,17 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Connection Dragging ===================== */
 
-    _beginPortDrag(mousedownEvent            , sourceNode              )       {
+    _beginPortDrag(mousedownEvent: MouseEvent, sourceNode: WorkflowNode): void {
         const self = this;
-        const srcId         = sourceNode.id;
-        const srcH         = getNodeH(sourceNode);
-        const startCanvasX         = sourceNode.x + NODE_W / 2;
-        const startCanvasY         = sourceNode.y + srcH + 20;
+        const srcId: string = sourceNode.id;
+        const srcH: number = getNodeH(sourceNode);
+        const startCanvasX: number = sourceNode.x + NODE_W / 2;
+        const startCanvasY: number = sourceNode.y + srcH + 20;
 
-        const tempLayer              = this._zoomGroup .select('.temp-link-layer');
+        const tempLayer: D3Selection = this._zoomGroup!.select('.temp-link-layer');
         tempLayer.selectAll('*').remove();
 
-        const lineNode             = tempLayer.append('path')
+        const lineNode: SVGElement = tempLayer.append('path')
             .attr('class', 'mas-temp-link')
             .attr('d', `M${startCanvasX},${startCanvasY} L${startCanvasX},${startCanvasY}`)
             .attr('fill', 'none')
@@ -887,37 +887,37 @@ export default class MarketingAutomationStudio extends LightningElement {
             .attr('pointer-events', 'none')
             .node();
 
-        let totalDist         = 0;
-        let currentTarget                      = null;
-        let rafId         = 0;
-        let lastClientX         = mousedownEvent.clientX;
-        let lastClientY         = mousedownEvent.clientY;
+        let totalDist: number = 0;
+        let currentTarget: WorkflowNode | null = null;
+        let rafId: number = 0;
+        let lastClientX: number = mousedownEvent.clientX;
+        let lastClientY: number = mousedownEvent.clientY;
 
-        const container = self.template.querySelector('.canvas-svg-container')               ;
-        const containerRect          = container.getBoundingClientRect();
+        const container = self.template.querySelector('.canvas-svg-container') as HTMLElement;
+        const containerRect: DOMRect = container.getBoundingClientRect();
 
-        const toCanvas = (clientX        , clientY        )                           => {
-            const t                 = self._currentTransform || self._d3 .zoomIdentity;
+        const toCanvas = (clientX: number, clientY: number): { x: number; y: number } => {
+            const t: D3ZoomIdentity = self._currentTransform || self._d3!.zoomIdentity;
             return {
                 x: (clientX - containerRect.left - t.x) / t.k,
                 y: (clientY - containerRect.top - t.y) / t.k,
             };
         };
 
-        const updateFrame = ()       => {
+        const updateFrame = (): void => {
             rafId = 0;
             const canvas = toCanvas(lastClientX, lastClientY);
-            const dx         = canvas.x - startCanvasX;
-            const dy         = canvas.y - startCanvasY;
-            const dist         = Math.sqrt(dx * dx + dy * dy);
-            const cpOff         = Math.max(Math.abs(dy) * 0.45, Math.min(dist * 0.3, 60));
+            const dx: number = canvas.x - startCanvasX;
+            const dy: number = canvas.y - startCanvasY;
+            const dist: number = Math.sqrt(dx * dx + dy * dy);
+            const cpOff: number = Math.max(Math.abs(dy) * 0.45, Math.min(dist * 0.3, 60));
 
             lineNode.setAttribute('d',
                 `M${startCanvasX},${startCanvasY} C${startCanvasX},${startCanvasY + cpOff} ${canvas.x},${canvas.y - cpOff} ${canvas.x},${canvas.y}`
             );
 
-            const hit                      = self._hitTestNode(canvas.x, canvas.y, srcId);
-            const hitId                = hit ? hit.id : null;
+            const hit: WorkflowNode | null = self._hitTestNode(canvas.x, canvas.y, srcId);
+            const hitId: string | null = hit ? hit.id : null;
 
             if (hitId !== (currentTarget ? currentTarget.id : null)) {
                 currentTarget = hit;
@@ -927,7 +927,7 @@ export default class MarketingAutomationStudio extends LightningElement {
             }
         };
 
-        const onMouseMove = (e            )       => {
+        const onMouseMove = (e: MouseEvent): void => {
             e.preventDefault();
             totalDist += Math.abs(e.movementX) + Math.abs(e.movementY);
             lastClientX = e.clientX;
@@ -937,7 +937,7 @@ export default class MarketingAutomationStudio extends LightningElement {
             }
         };
 
-        const onMouseUp = (e            )       => {
+        const onMouseUp = (e: MouseEvent): void => {
             document.removeEventListener('mousemove', onMouseMove, true);
             document.removeEventListener('mouseup', onMouseUp, true);
             if (rafId) cancelAnimationFrame(rafId);
@@ -951,10 +951,10 @@ export default class MarketingAutomationStudio extends LightningElement {
             }
 
             const canvas = toCanvas(e.clientX, e.clientY);
-            const target                      = self._hitTestNode(canvas.x, canvas.y, srcId);
+            const target: WorkflowNode | null = self._hitTestNode(canvas.x, canvas.y, srcId);
 
             if (target) {
-                const exactDuplicate          = self._links.some(
+                const exactDuplicate: boolean = self._links.some(
                     l => l.source === srcId && l.target === target.id
                 );
                 if (!exactDuplicate && srcId !== target.id) {
@@ -973,12 +973,12 @@ export default class MarketingAutomationStudio extends LightningElement {
         document.addEventListener('mouseup', onMouseUp, true);
     }
 
-    _hitTestNode(canvasX        , canvasY        , excludeId        )                      {
-        const margin         = 20;
-        for (let i         = 0; i < this._nodes.length; i++) {
-            const n               = this._nodes[i];
+    _hitTestNode(canvasX: number, canvasY: number, excludeId: string): WorkflowNode | null {
+        const margin: number = 20;
+        for (let i: number = 0; i < this._nodes.length; i++) {
+            const n: WorkflowNode = this._nodes[i];
             if (n.id === excludeId) continue;
-            const h         = getNodeH(n);
+            const h: number = getNodeH(n);
             if (canvasX >= n.x - margin && canvasX <= n.x + NODE_W + margin &&
                 canvasY >= n.y - margin && canvasY <= n.y + h + margin) {
                 return n;
@@ -989,12 +989,12 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Node Operations ===================== */
 
-    _addNodeBelow(parentNode              )       {
+    _addNodeBelow(parentNode: WorkflowNode): void {
         this._pushUndo();
-        const nextType                         = parentNode.nodeType === 'stage' ? 'transition' : 'stage';
-        const newId         = nextId();
+        const nextType: 'stage' | 'transition' = parentNode.nodeType === 'stage' ? 'transition' : 'stage';
+        const newId: string = nextId();
 
-        const newNode               = {
+        const newNode: WorkflowNode = {
             id: newId,
             nodeType: nextType,
             label: nextType === 'stage' ? 'New Stage' : 'New Transition',
@@ -1017,20 +1017,20 @@ export default class MarketingAutomationStudio extends LightningElement {
         this._selectNode(newNode);
     }
 
-    _addNodeFromPalette(type        , dropX        , dropY        )       {
+    _addNodeFromPalette(type: string, dropX: number, dropY: number): void {
         this._pushUndo();
-        const newId         = nextId();
-        const t                 = this._currentTransform || this._d3 .zoomIdentity;
-        const canvasX         = (dropX - t.x) / t.k;
-        const canvasY         = (dropY - t.y) / t.k;
-        const nodeType                                  = type                                   ;
+        const newId: string = nextId();
+        const t: D3ZoomIdentity = this._currentTransform || this._d3!.zoomIdentity;
+        const canvasX: number = (dropX - t.x) / t.k;
+        const canvasY: number = (dropY - t.y) / t.k;
+        const nodeType: 'root' | 'stage' | 'transition' = type as 'root' | 'stage' | 'transition';
 
-        const newNode               = {
+        const newNode: WorkflowNode = {
             id: newId,
             nodeType: nodeType,
             label: NODE_TYPE_LABELS[type] || 'New Step',
             x: canvasX - NODE_W / 2,
-            y: canvasY - getNodeH({ nodeType: nodeType }                ) / 2,
+            y: canvasY - getNodeH({ nodeType: nodeType } as WorkflowNode) / 2,
         };
 
         if (nodeType === 'stage') {
@@ -1043,7 +1043,7 @@ export default class MarketingAutomationStudio extends LightningElement {
 
         this._nodes.push(newNode);
 
-        const closest                      = this._findClosestNode(canvasX, canvasY, newId);
+        const closest: WorkflowNode | null = this._findClosestNode(canvasX, canvasY, newId);
         if (closest) {
             this._links.push({ id: 'l' + newId, source: closest.id, target: newId });
         }
@@ -1052,15 +1052,15 @@ export default class MarketingAutomationStudio extends LightningElement {
         this._selectNode(newNode);
     }
 
-    _findClosestNode(x        , y        , excludeId        )                      {
-        let best                      = null;
-        let bestDist         = Infinity;
-        this._nodes.forEach((n              ) => {
+    _findClosestNode(x: number, y: number, excludeId: string): WorkflowNode | null {
+        let best: WorkflowNode | null = null;
+        let bestDist: number = Infinity;
+        this._nodes.forEach((n: WorkflowNode) => {
             if (n.id === excludeId) return;
-            const h         = getNodeH(n);
-            const dx         = (n.x + NODE_W / 2) - x;
-            const dy         = (n.y + h) - y;
-            const dist         = Math.sqrt(dx * dx + dy * dy);
+            const h: number = getNodeH(n);
+            const dx: number = (n.x + NODE_W / 2) - x;
+            const dy: number = (n.y + h) - y;
+            const dist: number = Math.sqrt(dx * dx + dy * dy);
             if (dist < bestDist && n.y < y) {
                 bestDist = dist;
                 best = n;
@@ -1069,24 +1069,24 @@ export default class MarketingAutomationStudio extends LightningElement {
         return bestDist < 500 ? best : null;
     }
 
-    handleDeleteSelectedNode()       {
+    handleDeleteSelectedNode(): void {
         if (!this.selectedNode) return;
         this._deleteNode(this.selectedNode.id);
     }
 
     /* ===================== Property Changes ===================== */
 
-    handlePropertyChange(event       )       {
+    handlePropertyChange(event: Event): void {
         if (!this.selectedNode) return;
-        const target = event.target                    ;
-        const field         = target.dataset.field ;
-        const value         = target.type === 'checkbox' ? String(target.checked) : target.value;
-        const node                           = this._nodes.find(n => n.id === this.selectedNode .id);
+        const target = event.target as HTMLInputElement;
+        const field: string = target.dataset.field!;
+        const value: string = target.type === 'checkbox' ? String(target.checked) : target.value;
+        const node: WorkflowNode | undefined = this._nodes.find(n => n.id === this.selectedNode!.id);
         if (node) {
             if (target.type === 'checkbox') {
-                (node                                      )[field] = target.checked;
+                (node as unknown as Record<string, unknown>)[field] = target.checked;
             } else {
-                (node                                      )[field] = value;
+                (node as unknown as Record<string, unknown>)[field] = value;
             }
             this.selectedNode = { ...node };
             this._nodes = [...this._nodes];
@@ -1094,15 +1094,15 @@ export default class MarketingAutomationStudio extends LightningElement {
         }
     }
 
-    handleClosePropertyPanel()       {
+    handleClosePropertyPanel(): void {
         this._selectNode(null);
     }
 
     /* ===================== Toolbar Actions ===================== */
 
-    handleToolbarAction(event       )       {
-        const btn = event.currentTarget               ;
-        const action                     = btn.dataset.action;
+    handleToolbarAction(event: Event): void {
+        const btn = event.currentTarget as HTMLElement;
+        const action: string | undefined = btn.dataset.action;
         switch (action) {
             case 'undo':         this._undo(); break;
             case 'redo':         this._redo(); break;
@@ -1115,75 +1115,75 @@ export default class MarketingAutomationStudio extends LightningElement {
         }
     }
 
-    _zoomBy(factor        )       {
+    _zoomBy(factor: number): void {
         if (!this._svg || !this._zoomBehavior) return;
-        this._svg.transition().duration(300).call(this._zoomBehavior.scaleBy                                           , factor);
+        this._svg.transition().duration(300).call(this._zoomBehavior.scaleBy as unknown as (...args: unknown[]) => void, factor);
     }
 
-    _fitToScreen(animate         )       {
+    _fitToScreen(animate: boolean): void {
         if (!this._svg || !this._zoomBehavior || !this._nodes.length) return;
-        const d3           = this._d3 ;
+        const d3: D3Static = this._d3!;
 
-        const container = this.template.querySelector('.canvas-svg-container')               ;
+        const container = this.template.querySelector('.canvas-svg-container') as HTMLElement;
         if (!container) return;
-        const rect          = container.getBoundingClientRect();
-        const padX         = 120, padY         = 100;
+        const rect: DOMRect = container.getBoundingClientRect();
+        const padX: number = 120, padY: number = 100;
 
-        let minX         = Infinity, minY         = Infinity, maxX         = -Infinity, maxY         = -Infinity;
-        this._nodes.forEach((n              ) => {
-            const h         = getNodeH(n);
+        let minX: number = Infinity, minY: number = Infinity, maxX: number = -Infinity, maxY: number = -Infinity;
+        this._nodes.forEach((n: WorkflowNode) => {
+            const h: number = getNodeH(n);
             minX = Math.min(minX, n.x);
             minY = Math.min(minY, n.y);
             maxX = Math.max(maxX, n.x + NODE_W);
             maxY = Math.max(maxY, n.y + h);
         });
 
-        const contentW         = maxX - minX + padX * 2;
-        const contentH         = maxY - minY + padY * 2;
-        const scale         = Math.min(rect.width / contentW, rect.height / contentH, 1.2);
-        const tx         = rect.width / 2 - (minX + (maxX - minX) / 2) * scale;
-        const ty         = rect.height / 2 - (minY + (maxY - minY) / 2) * scale;
+        const contentW: number = maxX - minX + padX * 2;
+        const contentH: number = maxY - minY + padY * 2;
+        const scale: number = Math.min(rect.width / contentW, rect.height / contentH, 1.2);
+        const tx: number = rect.width / 2 - (minX + (maxX - minX) / 2) * scale;
+        const ty: number = rect.height / 2 - (minY + (maxY - minY) / 2) * scale;
 
-        const transform                 = d3.zoomIdentity.translate(tx, ty).scale(scale);
+        const transform: D3ZoomIdentity = d3.zoomIdentity.translate(tx, ty).scale(scale);
 
         if (animate) {
-            this._svg.transition().duration(500).ease(d3.easeCubicOut).call(this._zoomBehavior.transform                                           , transform);
+            this._svg.transition().duration(500).ease(d3.easeCubicOut).call(this._zoomBehavior.transform as unknown as (...args: unknown[]) => void, transform);
         } else {
-            this._svg.call(this._zoomBehavior.transform                                           , transform);
+            this._svg.call(this._zoomBehavior.transform as unknown as (...args: unknown[]) => void, transform);
         }
     }
 
     /* ===================== Undo / Redo ===================== */
 
-    _pushUndo()       {
+    _pushUndo(): void {
         this._undoStack.push({
-            nodes: JSON.parse(JSON.stringify(this._nodes))                  ,
-            links: JSON.parse(JSON.stringify(this._links))                  ,
+            nodes: JSON.parse(JSON.stringify(this._nodes)) as WorkflowNode[],
+            links: JSON.parse(JSON.stringify(this._links)) as WorkflowLink[],
         });
         this._redoStack = [];
         if (this._undoStack.length > 50) this._undoStack.shift();
     }
 
-    _undo()       {
+    _undo(): void {
         if (this._undoStack.length === 0) return;
         this._redoStack.push({
-            nodes: JSON.parse(JSON.stringify(this._nodes))                  ,
-            links: JSON.parse(JSON.stringify(this._links))                  ,
+            nodes: JSON.parse(JSON.stringify(this._nodes)) as WorkflowNode[],
+            links: JSON.parse(JSON.stringify(this._links)) as WorkflowLink[],
         });
-        const state            = this._undoStack.pop() ;
+        const state: UndoState = this._undoStack.pop()!;
         this._nodes = state.nodes;
         this._links = state.links;
         this.selectedNode = null;
         this._renderLinks();
     }
 
-    _redo()       {
+    _redo(): void {
         if (this._redoStack.length === 0) return;
         this._undoStack.push({
-            nodes: JSON.parse(JSON.stringify(this._nodes))                  ,
-            links: JSON.parse(JSON.stringify(this._links))                  ,
+            nodes: JSON.parse(JSON.stringify(this._nodes)) as WorkflowNode[],
+            links: JSON.parse(JSON.stringify(this._links)) as WorkflowLink[],
         });
-        const state            = this._redoStack.pop() ;
+        const state: UndoState = this._redoStack.pop()!;
         this._nodes = state.nodes;
         this._links = state.links;
         this.selectedNode = null;
@@ -1192,26 +1192,26 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Drag & Drop from Palette ===================== */
 
-    handlePaletteDragStart(event           )       {
-        this._draggedPaletteType = (event.currentTarget               ).dataset.type ;
-        event.dataTransfer .setData('text/plain', this._draggedPaletteType);
-        event.dataTransfer .effectAllowed = 'copy';
+    handlePaletteDragStart(event: DragEvent): void {
+        this._draggedPaletteType = (event.currentTarget as HTMLElement).dataset.type!;
+        event.dataTransfer!.setData('text/plain', this._draggedPaletteType);
+        event.dataTransfer!.effectAllowed = 'copy';
     }
 
-    handleCanvasDragOver(event           )       {
+    handleCanvasDragOver(event: DragEvent): void {
         event.preventDefault();
-        event.dataTransfer .dropEffect = 'copy';
+        event.dataTransfer!.dropEffect = 'copy';
     }
 
-    handleCanvasDrop(event           )       {
+    handleCanvasDrop(event: DragEvent): void {
         event.preventDefault();
-        const type         = event.dataTransfer .getData('text/plain') || this._draggedPaletteType || '';
+        const type: string = event.dataTransfer!.getData('text/plain') || this._draggedPaletteType || '';
         if (!type) return;
 
-        const canvasEl = this.template.querySelector('.canvas-svg-container')               ;
-        const rect          = canvasEl.getBoundingClientRect();
-        const dropX         = event.clientX - rect.left;
-        const dropY         = event.clientY - rect.top;
+        const canvasEl = this.template.querySelector('.canvas-svg-container') as HTMLElement;
+        const rect: DOMRect = canvasEl.getBoundingClientRect();
+        const dropX: number = event.clientX - rect.left;
+        const dropY: number = event.clientY - rect.top;
 
         this._addNodeFromPalette(type, dropX, dropY);
         this._draggedPaletteType = null;
@@ -1219,16 +1219,16 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Minimap ===================== */
 
-    _initMinimap()       {
-        const d3           = this._d3 ;
-        const minimapContainer                 = this.template.querySelector('.minimap-container');
+    _initMinimap(): void {
+        const d3: D3Static = this._d3!;
+        const minimapContainer: Element | null = this.template.querySelector('.minimap-container');
         if (!minimapContainer) return;
 
         while (minimapContainer.firstChild) minimapContainer.removeChild(minimapContainer.firstChild);
 
-        const mmW         = 180, mmH         = 130;
+        const mmW: number = 180, mmH: number = 130;
 
-        const mmSvg              = d3.select(minimapContainer                      )
+        const mmSvg: D3Selection = d3.select(minimapContainer as unknown as Element)
             .append('svg')
             .attr('width', mmW)
             .attr('height', mmH)
@@ -1237,7 +1237,7 @@ export default class MarketingAutomationStudio extends LightningElement {
         mmSvg.append('g').attr('class', 'minimap-links');
         mmSvg.append('g').attr('class', 'minimap-nodes');
 
-        const viewport              = mmSvg.append('rect')
+        const viewport: D3Selection = mmSvg.append('rect')
             .attr('class', 'minimap-viewport')
             .attr('x', 0).attr('y', 0)
             .attr('width', mmW).attr('height', mmH);
@@ -1247,59 +1247,59 @@ export default class MarketingAutomationStudio extends LightningElement {
         this._updateMinimap();
     }
 
-    _updateMinimap()       {
+    _updateMinimap(): void {
         if (!this._minimapSvg || !this._nodes.length) return;
-        const mmW         = 180, mmH         = 130;
+        const mmW: number = 180, mmH: number = 130;
 
-        let minX         = Infinity, minY         = Infinity, maxX         = -Infinity, maxY         = -Infinity;
-        this._nodes.forEach((n              ) => {
-            const h         = getNodeH(n);
+        let minX: number = Infinity, minY: number = Infinity, maxX: number = -Infinity, maxY: number = -Infinity;
+        this._nodes.forEach((n: WorkflowNode) => {
+            const h: number = getNodeH(n);
             minX = Math.min(minX, n.x);
             minY = Math.min(minY, n.y);
             maxX = Math.max(maxX, n.x + NODE_W);
             maxY = Math.max(maxY, n.y + h);
         });
 
-        const pad         = 80;
+        const pad: number = 80;
         minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-        const contentW         = maxX - minX;
-        const contentH         = maxY - minY;
-        const scale         = Math.min(mmW / contentW, mmH / contentH);
+        const contentW: number = maxX - minX;
+        const contentH: number = maxY - minY;
+        const scale: number = Math.min(mmW / contentW, mmH / contentH);
 
-        const nodeMap                            = new Map(this._nodes.map(n => [n.id, n]));
+        const nodeMap: Map<string, WorkflowNode> = new Map(this._nodes.map(n => [n.id, n]));
 
         this._minimapSvg.select('.minimap-links').selectAll('line')
-            .data(this._links             , (d         ) => (d                ).id)
+            .data(this._links as unknown[], (d: unknown) => (d as WorkflowLink).id)
             .join('line')
-            .attr('x1', (d         ) => { const s = nodeMap.get((d                ).source); return s ? (s.x + NODE_W / 2 - minX) * scale : 0; })
-            .attr('y1', (d         ) => { const s = nodeMap.get((d                ).source); return s ? (s.y + getNodeH(s) - minY) * scale : 0; })
-            .attr('x2', (d         ) => { const t = nodeMap.get((d                ).target); return t ? (t.x + NODE_W / 2 - minX) * scale : 0; })
-            .attr('y2', (d         ) => { const t = nodeMap.get((d                ).target); return t ? (t.y - minY) * scale : 0; })
+            .attr('x1', (d: unknown) => { const s = nodeMap.get((d as WorkflowLink).source); return s ? (s.x + NODE_W / 2 - minX) * scale : 0; })
+            .attr('y1', (d: unknown) => { const s = nodeMap.get((d as WorkflowLink).source); return s ? (s.y + getNodeH(s) - minY) * scale : 0; })
+            .attr('x2', (d: unknown) => { const t = nodeMap.get((d as WorkflowLink).target); return t ? (t.x + NODE_W / 2 - minX) * scale : 0; })
+            .attr('y2', (d: unknown) => { const t = nodeMap.get((d as WorkflowLink).target); return t ? (t.y - minY) * scale : 0; })
             .attr('stroke', LINK_COLOR)
             .attr('stroke-width', 0.8);
 
         this._minimapSvg.select('.minimap-nodes').selectAll('rect')
-            .data(this._nodes             , (d         ) => (d                ).id)
+            .data(this._nodes as unknown[], (d: unknown) => (d as WorkflowNode).id)
             .join('rect')
             .attr('class', 'minimap-node')
-            .attr('x', (d         ) => ((d                ).x - minX) * scale)
-            .attr('y', (d         ) => ((d                ).y - minY) * scale)
+            .attr('x', (d: unknown) => ((d as WorkflowNode).x - minX) * scale)
+            .attr('y', (d: unknown) => ((d as WorkflowNode).y - minY) * scale)
             .attr('width', NODE_W * scale)
-            .attr('height', (d         ) => getNodeH(d                ) * scale)
-            .attr('fill', (d         ) => ICON_COLORS[(d                ).nodeType] || ICON_COLORS.stage)
+            .attr('height', (d: unknown) => getNodeH(d as WorkflowNode) * scale)
+            .attr('fill', (d: unknown) => ICON_COLORS[(d as WorkflowNode).nodeType] || ICON_COLORS.stage)
             .attr('opacity', 0.8)
             .attr('rx', 2).attr('ry', 2);
 
         if (this._minimapViewport && this._currentTransform) {
-            const container = this.template.querySelector('.canvas-svg-container')               ;
+            const container = this.template.querySelector('.canvas-svg-container') as HTMLElement;
             if (!container) return;
-            const rect          = container.getBoundingClientRect();
-            const t                 = this._currentTransform;
+            const rect: DOMRect = container.getBoundingClientRect();
+            const t: D3ZoomIdentity = this._currentTransform;
 
-            const vx         = (-t.x / t.k - minX) * scale;
-            const vy         = (-t.y / t.k - minY) * scale;
-            const vw         = (rect.width / t.k) * scale;
-            const vh         = (rect.height / t.k) * scale;
+            const vx: number = (-t.x / t.k - minX) * scale;
+            const vy: number = (-t.y / t.k - minY) * scale;
+            const vw: number = (rect.width / t.k) * scale;
+            const vh: number = (rect.height / t.k) * scale;
 
             this._minimapViewport
                 .attr('x', Math.max(0, vx))
@@ -1311,53 +1311,53 @@ export default class MarketingAutomationStudio extends LightningElement {
 
     /* ===================== Execution Animation ===================== */
 
-    _runExecutionAnimation()       {
+    _runExecutionAnimation(): void {
         if (this._animationRunning) return;
         this._animationRunning = true;
-        const d3           = this._d3 ;
+        const d3: D3Static = this._d3!;
 
-        const childrenMap                              = new Map();
-        const hasParent              = new Set();
+        const childrenMap: Map<string, WorkflowLink[]> = new Map();
+        const hasParent: Set<string> = new Set();
 
-        this._links.forEach((l              ) => {
+        this._links.forEach((l: WorkflowLink) => {
             if (!childrenMap.has(l.source)) childrenMap.set(l.source, []);
-            childrenMap.get(l.source) .push(l);
+            childrenMap.get(l.source)!.push(l);
             hasParent.add(l.target);
         });
 
-        let roots                 = this._nodes.filter(n => !hasParent.has(n.id));
+        let roots: WorkflowNode[] = this._nodes.filter(n => !hasParent.has(n.id));
         if (roots.length === 0 && this._nodes.length > 0) roots = [this._nodes[0]];
         if (roots.length === 0) { this._animationRunning = false; return; }
 
-        const order                                                          = [];
-        const loopbackLinks           = [];
-        const visited              = new Set();
-        const bfs                                                     = [...roots.map(r => ({ nodeId: r.id, fromLink: null                  }))];
+        const order: Array<{ nodeId: string | null; linkId: string | null }> = [];
+        const loopbackLinks: string[] = [];
+        const visited: Set<string> = new Set();
+        const bfs: Array<{ nodeId: string; fromLink: string | null }> = [...roots.map(r => ({ nodeId: r.id, fromLink: null as string | null }))];
 
         while (bfs.length > 0) {
-            const { nodeId, fromLink } = bfs.shift() ;
+            const { nodeId, fromLink } = bfs.shift()!;
             if (visited.has(nodeId)) {
                 if (fromLink) loopbackLinks.push(fromLink);
                 continue;
             }
             visited.add(nodeId);
             order.push({ nodeId, linkId: fromLink });
-            const children                 = childrenMap.get(nodeId) || [];
-            children.forEach((link              ) => {
+            const children: WorkflowLink[] = childrenMap.get(nodeId) || [];
+            children.forEach((link: WorkflowLink) => {
                 bfs.push({ nodeId: link.target, fromLink: link.id });
             });
         }
 
-        loopbackLinks.forEach((linkId        ) => {
+        loopbackLinks.forEach((linkId: string) => {
             order.push({ nodeId: null, linkId });
         });
 
-        let step         = 0;
-        const interval                                 = setInterval(() => {
+        let step: number = 0;
+        const interval: ReturnType<typeof setInterval> = setInterval(() => {
             if (step >= order.length) {
                 clearInterval(interval);
                 setTimeout(() => {
-                    this._zoomGroup .selectAll('.mas-link').classed('is-animating', false);
+                    this._zoomGroup!.selectAll('.mas-link').classed('is-animating', false);
                     this._executingNodeIds = new Set();
                     this._animationRunning = false;
                 }, 800);
@@ -1367,8 +1367,8 @@ export default class MarketingAutomationStudio extends LightningElement {
             const { nodeId, linkId } = order[step];
 
             if (linkId) {
-                this._zoomGroup .selectAll('.mas-link-group').each(function(                  d         ) {
-                    if ((d                ).id === linkId) {
+                this._zoomGroup!.selectAll('.mas-link-group').each(function(this: SVGElement, d: unknown) {
+                    if ((d as WorkflowLink).id === linkId) {
                         d3.select(this).select('.mas-link')
                             .classed('is-animating', true)
                             .attr('stroke', '#4bca81')
@@ -1378,11 +1378,11 @@ export default class MarketingAutomationStudio extends LightningElement {
             }
 
             if (nodeId) {
-                const newSet              = new Set(this._executingNodeIds);
+                const newSet: Set<string> = new Set(this._executingNodeIds);
                 newSet.add(nodeId);
                 this._executingNodeIds = newSet;
                 setTimeout(() => {
-                    const updated              = new Set(this._executingNodeIds);
+                    const updated: Set<string> = new Set(this._executingNodeIds);
                     updated.delete(nodeId);
                     this._executingNodeIds = updated;
                 }, 800);

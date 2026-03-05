@@ -10,3 +10,7 @@ package.xml
 
 # LWC Jest
 **/__tests__/**
+
+# TypeScript source files (compiled .js is deployed instead)
+**/*.ts
+!**/*.d.ts

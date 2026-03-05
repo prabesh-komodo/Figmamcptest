@@ -1,0 +1,101 @@
+<template>
+    <lightning-card>
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <lightning-record-edit-form
+                object-api-name="Contact"
+                onsubmit={handleSubmit}
+            >
+                <lightning-tabset>
+                    <lightning-tab label="Details">
+                        <!-- Contact Information Section -->
+                        <fieldset class="fieldset-section">
+                            <legend class="fieldset-legend">Contact Information</legend>
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <!-- Owner (read-only, not from field set) -->
+                                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                    <div class="readonly-field">
+                                        <span class="field-label">Owner</span>
+                                        <div class="readonly-value">
+                                            <lightning-icon
+                                                icon-name="standard:user"
+                                                size="x-small"
+                                                class="slds-m-right_xx-small owner-avatar"
+                                            ></lightning-icon>
+                                            {ownerName}
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Dynamic contact fields from field set -->
+                                <template for:each={contactFields} for:item="field">
+                                    <div key={field.fieldPath} class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                        <lightning-input-field
+                                            field-name={field.fieldPath}
+                                        ></lightning-input-field>
+                                    </div>
+                                </template>
+                                <!-- Account Name (manual, not from field set) -->
+                                <div class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                    <lightning-input
+                                        label="Account Name"
+                                        value={accountName}
+                                        data-field="AccountName"
+                                        onchange={handleAccountNameChange}
+                                        placeholder="Enter Account Name to link or create"
+                                    ></lightning-input>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <!-- Address Information Section -->
+                        <fieldset class="fieldset-section">
+                            <legend class="fieldset-legend">Address Information</legend>
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <template for:each={addressFields} for:item="field">
+                                    <div key={field.fieldPath} class="slds-col slds-size_1-of-2 slds-p-bottom_small">
+                                        <lightning-input-field
+                                            field-name={field.fieldPath}
+                                        ></lightning-input-field>
+                                    </div>
+                                </template>
+                            </div>
+                        </fieldset>
+
+                        <!-- Description Information Section -->
+                        <fieldset class="fieldset-section">
+                            <legend class="fieldset-legend">Description Information</legend>
+                            <div class="slds-grid slds-wrap slds-gutters">
+                                <template for:each={descriptionFields} for:item="field">
+                                    <div key={field.fieldPath} class="slds-col slds-size_1-of-1 slds-p-bottom_small">
+                                        <lightning-input-field
+                                            field-name={field.fieldPath}
+                                        ></lightning-input-field>
+                                    </div>
+                                </template>
+                            </div>
+                        </fieldset>
+
+                        <!-- Footer Buttons -->
+                        <div class="slds-m-top_medium slds-text-align_center">
+                            <lightning-button
+                                label="Cancel"
+                                onclick={handleCancel}
+                                class="slds-m-right_small"
+                            ></lightning-button>
+                            <lightning-button
+                                variant="brand"
+                                label="Save"
+                                type="submit"
+                                disabled={isSaving}
+                            ></lightning-button>
+                        </div>
+                    </lightning-tab>
+                    <lightning-tab label="User Roles">
+                        <div class="slds-p-around_medium slds-text-align_center slds-text-color_weak">
+                            User Roles content
+                        </div>
+                    </lightning-tab>
+                </lightning-tabset>
+            </lightning-record-edit-form>
+        </div>
+    </lightning-card>
+</template>
