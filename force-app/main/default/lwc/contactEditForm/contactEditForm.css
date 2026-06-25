@@ -1,0 +1,17 @@
+.section-header {
+  background-color: var(--slds-g-color-neutral-base-95, #f3f3f3);
+  border-radius: var(--slds-g-radius-border-2, 8px);
+}
+
+.section-title {
+  font-size: var(--slds-g-font-scale-2, 1rem);
+  color: var(--slds-g-color-neutral-base-10, #2e2e2e);
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: var(--slds-g-font-weight-4, 400);
+}
+
+.name-group-label {
+  font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+  color: var(--slds-g-color-neutral-base-10, #2e2e2e);
+}

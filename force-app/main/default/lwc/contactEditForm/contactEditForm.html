@@ -1,0 +1,284 @@
+<template>
+  <lightning-card>
+    <div class="slds-p-horizontal_medium">
+      <lightning-tabset active-tab-value={activeTab} onactive={handleTabChange}>
+        <lightning-tab label="Details" value="details">
+          <lightning-record-edit-form
+            object-api-name="Contact"
+            record-id={recordId}
+            onsuccess={handleSuccess}
+            onerror={handleError}
+            onsubmit={handleSubmit}
+          >
+            <!-- Contact Information Section -->
+            <div class="slds-section slds-is-open slds-p-top_medium">
+              <div
+                class="section-header slds-p-horizontal_small slds-p-vertical_x-small slds-m-bottom_x-small"
+              >
+                <span class="slds-text-title_caps section-title"
+                  >Contact Information</span
+                >
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-output-field
+                    field-name="OwnerId"
+                  ></lightning-output-field>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="Phone"
+                  ></lightning-input-field>
+                </div>
+              </div>
+
+              <div class="slds-p-bottom_x-small">
+                <p
+                  class="slds-text-title_bold slds-p-bottom_xx-small name-group-label"
+                >
+                  <abbr class="slds-required" title="required">*</abbr> Name
+                </p>
+
+                <div class="slds-grid slds-gutters slds-wrap">
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="Salutation"
+                    ></lightning-input-field>
+                  </div>
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="HomePhone"
+                    ></lightning-input-field>
+                  </div>
+                </div>
+
+                <div class="slds-grid slds-gutters slds-wrap">
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="FirstName"
+                      required
+                    ></lightning-input-field>
+                  </div>
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="OtherPhone"
+                    ></lightning-input-field>
+                  </div>
+                </div>
+
+                <div class="slds-grid slds-gutters slds-wrap">
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="MiddleName"
+                    ></lightning-input-field>
+                  </div>
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="Fax"
+                    ></lightning-input-field>
+                  </div>
+                </div>
+
+                <div class="slds-grid slds-gutters slds-wrap">
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="LastName"
+                      required
+                    ></lightning-input-field>
+                  </div>
+                  <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                    <lightning-input-field
+                      field-name="Email"
+                    ></lightning-input-field>
+                  </div>
+                </div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="Title"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="AssistantName"
+                  ></lightning-input-field>
+                </div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="Department"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="AssistantPhone"
+                  ></lightning-input-field>
+                </div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="Birthdate"
+                  ></lightning-input-field>
+                </div>
+                <div
+                  class="slds-col slds-size_1-of-2 slds-p-bottom_x-small"
+                ></div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="ReportsToId"
+                  ></lightning-input-field>
+                </div>
+                <div
+                  class="slds-col slds-size_1-of-2 slds-p-bottom_x-small"
+                ></div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="LeadSource"
+                  ></lightning-input-field>
+                </div>
+                <div
+                  class="slds-col slds-size_1-of-2 slds-p-bottom_x-small"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Address Information Section -->
+            <div class="slds-section slds-is-open slds-p-top_small">
+              <div
+                class="section-header slds-p-horizontal_small slds-p-vertical_x-small slds-m-bottom_x-small"
+              >
+                <span class="slds-text-title_caps section-title"
+                  >Address Information</span
+                >
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <p class="slds-text-title_bold slds-p-bottom_xx-small">
+                    Mailing Address
+                  </p>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <p class="slds-text-title_bold slds-p-bottom_xx-small">
+                    Other Address
+                  </p>
+                </div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="MailingStreet"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-2 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="OtherStreet"
+                  ></lightning-input-field>
+                </div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="MailingCity"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="MailingState"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="OtherCity"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="OtherState"
+                  ></lightning-input-field>
+                </div>
+              </div>
+
+              <div class="slds-grid slds-gutters slds-wrap">
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="MailingPostalCode"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="MailingCountry"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="OtherPostalCode"
+                  ></lightning-input-field>
+                </div>
+                <div class="slds-col slds-size_1-of-4 slds-p-bottom_x-small">
+                  <lightning-input-field
+                    field-name="OtherCountry"
+                  ></lightning-input-field>
+                </div>
+              </div>
+            </div>
+
+            <!-- Description Information Section -->
+            <div class="slds-section slds-is-open slds-p-top_small">
+              <div
+                class="section-header slds-p-horizontal_small slds-p-vertical_x-small slds-m-bottom_x-small"
+              >
+                <span class="slds-text-title_caps section-title"
+                  >Description Information</span
+                >
+              </div>
+
+              <lightning-input-field
+                field-name="Description"
+              ></lightning-input-field>
+            </div>
+
+            <div class="slds-m-top_medium slds-clearfix">
+              <div class="slds-float_right">
+                <lightning-button
+                  variant="neutral"
+                  label="Cancel"
+                  onclick={handleCancel}
+                  class="slds-m-right_x-small"
+                ></lightning-button>
+                <lightning-button
+                  variant="brand"
+                  label="Save"
+                  type="submit"
+                ></lightning-button>
+              </div>
+            </div>
+          </lightning-record-edit-form>
+        </lightning-tab>
+
+        <lightning-tab label="User Roles" value="userRoles">
+          <div class="slds-p-around_medium slds-text-align_center">
+            <p class="slds-text-body_regular slds-text-color_weak">
+              User Roles content will appear here.
+            </p>
+          </div>
+        </lightning-tab>
+      </lightning-tabset>
+    </div>
+  </lightning-card>
+</template>

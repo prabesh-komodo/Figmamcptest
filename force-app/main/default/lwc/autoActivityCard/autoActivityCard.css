@@ -1,0 +1,4 @@
+/* Card: 12px radius per design (radius-m); no SLDS utility for this value */
+.auto-activity-card {
+  border-radius: var(--slds-g-radius-border-2, 0.75rem);
+}

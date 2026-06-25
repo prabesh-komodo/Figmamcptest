@@ -22,6 +22,17 @@ declare module 'lwc' {
     ): void;
 }
 
+declare module 'lightning/modal' {
+    import { LightningElement } from 'lwc';
+    export default class LightningModal extends LightningElement {
+        close(result?: unknown): void;
+    }
+}
+
+declare module 'lightning/navigation' {
+    export const NavigationMixin: unknown;
+}
+
 declare module 'lightning/platformResourceLoader' {
     export function loadScript(
         component: unknown,
@@ -31,6 +42,19 @@ declare module 'lightning/platformResourceLoader' {
         component: unknown,
         resourceUrl: string
     ): Promise<void>;
+}
+
+declare module 'c/multiRowInputModal' {
+    interface MultiRowInputModalOpenOptions {
+        label?: string;
+        size?: 'small' | 'medium' | 'large';
+    }
+    const MultiRowInputModal: {
+        open(options?: MultiRowInputModalOpenOptions): Promise<
+            { rows: Array<{ id: string; name: string; detail: string }> } | undefined
+        >;
+    };
+    export default MultiRowInputModal;
 }
 
 declare module '@salesforce/resourceUrl/d3' {
@@ -189,4 +213,20 @@ declare module '@salesforce/apex/ContactFormSonnetController.saveContact' {
     export default function saveContact(params: {
         contactRecord: Record<string, unknown>;
     }): Promise<{ Id: string }>;
+}
+
+declare module '@salesforce/apex/ContactEditFormController.getFieldSetMembers' {
+    export default function getFieldSetMembers(params: {
+        fieldSetName: string;
+    }): Promise<Array<{ fieldPath: string; label: string; type: string; required: boolean }>>;
+}
+
+declare module '@salesforce/apex/ContactEditFormController.getCurrentUserInfo' {
+    export default function getCurrentUserInfo(): Promise<Record<string, string>>;
+}
+
+declare module '@salesforce/apex/ContactEditFormController.searchContacts' {
+    export default function searchContacts(params: {
+        searchTerm: string;
+    }): Promise<Array<{ label: string; value: string }>>;
 }

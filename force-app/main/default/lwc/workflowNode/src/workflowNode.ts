@@ -51,6 +51,7 @@ export default class WorkflowNode extends LightningElement {
     @api isSelected: boolean = false;
     @api isConnectTarget: boolean = false;
     @api isExecuting: boolean = false;
+    @api isCollapsed: boolean = false;
 
     get nodeType(): string {
         return this.nodeData ? this.nodeData.nodeType : 'stage';
@@ -66,7 +67,16 @@ export default class WorkflowNode extends LightningElement {
         if (this.isSelected)       cls += ' node-card--selected';
         if (this.isConnectTarget)  cls += ' node-card--connect-target';
         if (this.isExecuting)      cls += ' node-card--executing';
+        if (this.isCollapsed)      cls += ' node-card--collapsed';
         return cls;
+    }
+
+    get chevronClass(): string {
+        return 'chevron-icon' + (this.isCollapsed ? ' chevron-icon--collapsed' : '');
+    }
+
+    get collapseTitle(): string {
+        return this.isCollapsed ? 'Expand' : 'Collapse';
     }
 
     get inputPortClass(): string {
@@ -169,6 +179,15 @@ export default class WorkflowNode extends LightningElement {
     handleEdit(event: Event): void {
         event.stopPropagation();
         this.dispatchEvent(new CustomEvent('nodeselect', {
+            detail: { nodeId: this.nodeData ? this.nodeData.id : null },
+            bubbles: true,
+            composed: true,
+        }));
+    }
+
+    handleToggleCollapse(event: Event): void {
+        event.stopPropagation();
+        this.dispatchEvent(new CustomEvent('nodecollapse', {
             detail: { nodeId: this.nodeData ? this.nodeData.id : null },
             bubbles: true,
             composed: true,

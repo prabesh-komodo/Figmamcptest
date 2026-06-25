@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+/* Preview container */
+.preview-container {
+  min-height: var(--slds-g-spacing-12, 200px);
+}
+
+/* Visual page-break indicator shown on screen in preview */
+.page-break-indicator {
+  position: relative;
+  border-top: 2px dashed var(--slds-g-color-border-base-1, #c9c9c9);
+  margin-top: var(--slds-g-spacing-4, 16px);
+  margin-bottom: var(--slds-g-spacing-4, 16px);
+}
+
+.page-break-label {
+  position: absolute;
+  top: -0.65em;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--slds-g-color-neutral-base-100, #fff);
+  color: var(--slds-g-color-neutral-base-30, #747474);
+}
+
+/* Hidden on screen; triggers actual page break in print */
+.page-break-print {
+  display: none;
+}
+
+/* ── Print styles ────────────────────────────────── */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .preview-container {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .page-break-indicator {
+    display: none;
+  }
+
+  .page-break-print {
+    display: block;
+    break-after: page;
+    page-break-after: always;
+    height: 0;
+  }
+}

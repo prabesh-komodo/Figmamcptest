@@ -1,0 +1,68 @@
+<template>
+  <div class="slds-p-around_small">
+    <!-- Mode toggle -->
+    <div class="slds-grid slds-grid_align-end slds-m-bottom_x-small no-print">
+      <lightning-button-group>
+        <lightning-button
+          label="Edit"
+          variant={editButtonVariant}
+          onclick={handleEditMode}
+        ></lightning-button>
+        <lightning-button
+          label="Preview"
+          variant={previewButtonVariant}
+          onclick={handlePreviewMode}
+        ></lightning-button>
+      </lightning-button-group>
+    </div>
+
+    <!-- Editor mode -->
+    <template lwc:if={isEditMode}>
+      <div class="no-print">
+        <lightning-input-rich-text
+          lwc:ref="richText"
+          label={label}
+          label-visible={labelVisible}
+          value={value}
+          placeholder={placeholder}
+          disabled={disabled}
+          readonly={readOnly}
+          required={required}
+          onchange={handleChange}
+        >
+          <template lwc:if={showPageBreakButton}>
+            <lightning-rich-text-toolbar-button-group slot="toolbar">
+              <lightning-rich-text-toolbar-button
+                icon-name="utility:spacer"
+                icon-alternative-text="Insert page break"
+                disabled={pageBreakButtonDisabled}
+                onclick={handleInsertPageBreak}
+              ></lightning-rich-text-toolbar-button>
+            </lightning-rich-text-toolbar-button-group>
+          </template>
+        </lightning-input-rich-text>
+      </div>
+    </template>
+
+    <!-- Preview mode -->
+    <template lwc:if={isPreviewMode}>
+      <div class="preview-container slds-box slds-theme_default">
+        <template for:each={previewSections} for:item="section">
+          <div key={section.key} class="page-section">
+            <lightning-formatted-rich-text
+              value={section.html}
+            ></lightning-formatted-rich-text>
+            <template lwc:if={section.hasPageBreak}>
+              <div class="page-break-indicator no-print">
+                <span class="page-break-label slds-text-body_small"
+                  >Page Break</span
+                >
+              </div>
+              <div class="page-break-print"></div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+</template>

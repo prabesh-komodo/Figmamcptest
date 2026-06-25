@@ -1,0 +1,64 @@
+/* Card container — border-radius (12px), border, and background have no SLDS utility class equivalent */
+.activity-card {
+  background-color: var(--slds-g-color-neutral-base-100, #ffffff);
+  border: var(--slds-g-sizing-border-1, 1px) solid
+    var(--slds-g-color-border-1, #c9c9c9);
+  border-radius: var(
+    --slds-g-radius-border-3,
+    12px
+  ); /* custom: no SLDS utility class for 12px radius */
+  overflow: hidden; /* custom: no SLDS utility class equivalent */
+}
+
+/* Task title — 14px bold; no SLDS heading class maps to exactly 14px bold */
+.task-title {
+  font-size: var(
+    --slds-g-font-scale-1,
+    14px
+  ); /* custom: no SLDS equivalent for 14px bold */
+  font-weight: var(--slds-g-font-weight-7, 700);
+  color: var(--slds-g-color-neutral-base-10, #2e2e2e);
+}
+
+/* Warning badge — color overrides only; size/padding/shape from slds-badge base class */
+.warning-badge {
+  background-color: var(
+    --slds-g-color-warning-container-1,
+    #f9e3b6
+  ); /* custom: no SLDS badge warning variant in LWC */
+  color: var(--slds-g-color-on-warning-1, #8c4b02);
+}
+
+/* Field label color — "text-weak" gray with no direct SLDS text-color utility class match */
+.field-label {
+  color: var(
+    --slds-g-color-neutral-base-50,
+    #5b5858
+  ); /* custom: no SLDS equivalent for this specific gray */
+}
+
+/* Divider wrapper spacing */
+.divider {
+  line-height: 0; /* custom: needed to collapse line-height around the 1px border */
+}
+
+/* Assigned name — brand blue; slds-text-link is for <a> elements only */
+.assigned-name {
+  font-size: var(
+    --slds-g-font-scale-neg-1,
+    12px
+  ); /* custom: no SLDS equivalent for this size + color combo */
+  color: var(--slds-g-color-brand-base-50, #066afe);
+}
+
+/* User icon — force brand blue color via SLDS styling hooks */
+.user-icon {
+  --slds-c-icon-color-foreground: var(
+    --slds-g-color-brand-base-50,
+    #066afe
+  ); /* custom: no SLDS utility class for icon color override */
+  --slds-c-icon-color-foreground-default: var(
+    --slds-g-color-brand-base-50,
+    #066afe
+  );
+}

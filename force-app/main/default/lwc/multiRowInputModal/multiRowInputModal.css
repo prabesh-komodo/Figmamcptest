@@ -1,0 +1,5 @@
+/* Modal height follows content; avoid fixed body height so rows can grow the dialog naturally. */
+
+:host {
+  display: block;
+}

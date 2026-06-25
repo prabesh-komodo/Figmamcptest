@@ -1,0 +1,91 @@
+<template>
+  <lightning-card title="Document History">
+    <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <ul class="slds-timeline">
+        <template for:each={activities} for:item="activity">
+          <li key={activity.id}>
+            <div class={activity.itemClass}>
+              <span class="slds-assistive-text">{activity.title}</span>
+              <div class="slds-media">
+                <div class="timeline-figure">
+                  <div class="timeline-toggle">
+                    <lightning-button-icon
+                      icon-name={activity.chevronIcon}
+                      alternative-text={activity.expandedLabel}
+                      variant="bare"
+                      size="x-small"
+                      data-id={activity.id}
+                      onclick={handleToggle}
+                    ></lightning-button-icon>
+                  </div>
+                  <div class="timeline-icon-column">
+                    <span class={activity.iconContainerClass}>
+                      <lightning-icon
+                        icon-name={activity.iconName}
+                        size="xx-small"
+                        alternative-text={activity.title}
+                        class="icon-white"
+                      ></lightning-icon>
+                    </span>
+                    <template lwc:if={activity.hasBar}>
+                      <div class={activity.barClass}></div>
+                    </template>
+                  </div>
+                </div>
+                <div class="slds-media__body">
+                  <div class="dh-trigger">
+                    <div
+                      class="slds-grid slds-grid_vertical-align-center slds-truncate_container_75 slds-no-space"
+                    >
+                      <h3 class="slds-truncate" title={activity.title}>
+                        <button
+                          type="button"
+                          class="slds-button slds-button_reset title-link"
+                          data-id={activity.id}
+                          onclick={handleToggle}
+                        >
+                          {activity.title}
+                        </button>
+                      </h3>
+                    </div>
+                    <div
+                      class="slds-timeline__actions slds-timeline__actions_inline"
+                    >
+                      <span class="timestamp-text">{activity.timestamp}</span>
+                    </div>
+                  </div>
+                  <p
+                    class="slds-m-horizontal_xx-small slds-m-top_xx-small description-text"
+                  >
+                    <button
+                      type="button"
+                      class="slds-button slds-button_reset actor-link"
+                    >
+                      {activity.actorName}
+                    </button>
+                    <span> {activity.description}</span>
+                  </p>
+                  <template lwc:if={activity.showDetails}>
+                    <div
+                      class="detail-box slds-m-top_x-small slds-m-horizontal_xx-small slds-p-around_medium"
+                    >
+                      <template
+                        for:each={activity.detailItems}
+                        for:item="detail"
+                      >
+                        <div key={detail.label}>
+                          <p class="detail-label">{detail.label}</p>
+                          <p class="detail-value">{detail.value}</p>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </li>
+        </template>
+      </ul>
+    </div>
+  </lightning-card>
+</template>

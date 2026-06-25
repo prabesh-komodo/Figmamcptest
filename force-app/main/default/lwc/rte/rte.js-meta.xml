@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <targets>
+        <target>lightning__RecordPage</target>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig
+      targets="lightning__RecordPage,lightning__AppPage,lightning__HomePage"
+    >
+            <property
+        name="label"
+        type="String"
+        label="Label"
+        default="Rich text"
+      />
+            <property name="placeholder" type="String" label="Placeholder" />
+            <property
+        name="disabled"
+        type="Boolean"
+        label="Disabled"
+        default="false"
+      />
+            <property
+        name="readOnly"
+        type="Boolean"
+        label="Read-only"
+        default="false"
+      />
+            <property
+        name="required"
+        type="Boolean"
+        label="Required"
+        default="false"
+      />
+            <property
+        name="labelVisible"
+        type="Boolean"
+        label="Show label"
+        default="false"
+      />
+            <property
+        name="showPageBreakButton"
+        type="Boolean"
+        label="Show page break marker button"
+        default="true"
+      />
+            <property
+        name="pageBreakMarker"
+        type="String"
+        label="Page break marker text"
+        default="[[PAGE_BREAK]]"
+        description="Plain text inserted at the cursor. Salesforce rich text has no true page-break format; use this token in PDF or server-side output."
+      />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

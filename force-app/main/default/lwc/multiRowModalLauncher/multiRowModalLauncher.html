@@ -1,0 +1,16 @@
+<template>
+  <lightning-card title="Multi-row modal demo" icon-name="utility:rows">
+    <div class="slds-p-around_medium">
+      <p class="slds-text-body_small slds-m-bottom_small">
+        Opens the Salesforce Lightning modal with dynamic rows. Modal height
+        grows with the number of rows until the viewport limit, then the body
+        scrolls.
+      </p>
+      <lightning-button
+        label="Open modal"
+        variant="brand"
+        onclick={handleOpenModal}
+      ></lightning-button>
+    </div>
+  </lightning-card>
+</template>

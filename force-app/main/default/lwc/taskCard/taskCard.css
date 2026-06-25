@@ -1,0 +1,65 @@
+.task-card {
+  background-color: var(--slds-g-color-surface-container-1, white);
+  border: var(--slds-g-sizing-border-1, 1px) solid
+    var(--slds-g-color-border-1, #c9c9c9); /* custom: no SLDS utility class for full 4-sided border */
+  border-radius: var(
+    --slds-g-radius-border-3,
+    12px
+  ); /* custom: no SLDS utility class equivalent */
+  overflow: hidden;
+}
+
+.task-card__title {
+  font-size: 14px; /* custom: no SLDS utility class equivalent; --slds-g-font-size-4 not a valid SLDS 2 token */
+  font-weight: var(
+    --slds-g-font-weight-7,
+    700
+  ); /* custom: slds-text-title_bold forces uppercase which breaks design */
+  color: var(--slds-g-color-neutral-base-20, #2e2e2e);
+  display: block;
+}
+
+.task-card__status-badge {
+  background-color: var(--slds-g-color-warning-container-1, #f9e3b6);
+  color: var(--slds-g-color-on-warning-1, #8c4b02);
+  border-radius: var(
+    --slds-g-radius-border-1,
+    4px
+  ); /* custom: no SLDS utility class equivalent */
+  font-size: var(
+    --slds-g-font-size-1,
+    12px
+  ); /* custom: no SLDS utility class equivalent */
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center; /* custom: inline-flex context, no SLDS utility class equivalent */
+}
+
+.task-card__label {
+  font-size: var(
+    --slds-g-font-size-1,
+    12px
+  ); /* custom: no SLDS utility class equivalent */
+  color: var(--slds-g-color-on-surface-1, #5b5858);
+  line-height: var(--slds-g-font-line-height-base, 1.5);
+}
+
+.task-card__body-text {
+  font-size: var(
+    --slds-g-font-size-2,
+    13px
+  ); /* custom: no SLDS utility class equivalent */
+  color: var(--slds-g-color-neutral-base-20, #2e2e2e);
+}
+
+.task-card__user-icon {
+  --slds-c-icon-color-foreground: var(--slds-g-color-accent-base-50, #066afe);
+}
+
+.task-card__assignee {
+  font-size: var(
+    --slds-g-font-size-1,
+    12px
+  ); /* custom: no SLDS utility class equivalent */
+  color: var(--slds-g-color-accent-base-50, #066afe);
+}

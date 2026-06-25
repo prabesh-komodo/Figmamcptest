@@ -1,0 +1,68 @@
+<template>
+  <lightning-modal-header label={label}></lightning-modal-header>
+  <lightning-modal-body>
+    <div class="slds-grid slds-grid_vertical">
+      <template for:each={rows} for:item="row">
+        <div
+          key={row.id}
+          class="slds-grid slds-gutters_small slds-wrap slds-m-bottom_small slds-p-bottom_small slds-border_bottom"
+        >
+          <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12">
+            <lightning-input
+              label="Name"
+              name="name"
+              value={row.name}
+              data-row-id={row.id}
+              data-field="name"
+              onchange={handleFieldChange}
+            ></lightning-input>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-medium-size_5-of-12">
+            <lightning-input
+              label="Detail"
+              name="detail"
+              value={row.detail}
+              data-row-id={row.id}
+              data-field="detail"
+              onchange={handleFieldChange}
+            ></lightning-input>
+          </div>
+          <div
+            class="slds-col slds-size_1-of-1 slds-medium-size_2-of-12 slds-grid slds-grid_vertical-align-end"
+          >
+            <lightning-button-icon
+              icon-name="utility:delete"
+              alternative-text="Remove row"
+              variant="border-filled"
+              disabled={disableRemove}
+              data-row-id={row.id}
+              onclick={handleRemoveRow}
+              class="slds-m-top_medium"
+            ></lightning-button-icon>
+          </div>
+        </div>
+      </template>
+      <div class="slds-m-top_x-small">
+        <lightning-button
+          label="Add new row"
+          icon-name="utility:add"
+          onclick={handleAddRow}
+        ></lightning-button>
+      </div>
+    </div>
+  </lightning-modal-body>
+  <lightning-modal-footer>
+    <div class="slds-grid slds-grid_align-end">
+      <lightning-button
+        label="Cancel"
+        onclick={handleCancel}
+        class="slds-m-right_x-small"
+      ></lightning-button>
+      <lightning-button
+        label="Done"
+        variant="brand"
+        onclick={handleDone}
+      ></lightning-button>
+    </div>
+  </lightning-modal-footer>
+</template>

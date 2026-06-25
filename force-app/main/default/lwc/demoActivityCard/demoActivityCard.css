@@ -1,0 +1,45 @@
+/* Styles in this file have NO SLDS utility class equivalent (per Section 5.3). */
+
+:host {
+  display: block;
+}
+
+.activity-card {
+  background: var(--slds-g-color-surface-container-1, #fff);
+  border: var(--slds-g-sizing-border-1, 1px) solid
+    var(--slds-g-color-border-1, #c9c9c9);
+  border-radius: var(--slds-g-radius-border-3, 12px);
+  overflow: hidden;
+}
+
+.task-title {
+  font-size: var(--slds-g-font-scale-1, 0.875rem);
+  color: var(--slds-g-color-neutral-base-10, #2e2e2e);
+  min-width: 0;
+}
+
+.field-label {
+  color: var(--slds-g-color-neutral-base-30, #444);
+}
+
+.description-label {
+  color: var(--slds-g-color-neutral-base-40, #5b5858);
+}
+
+.field-value {
+  font-size: var(--slds-g-font-scale-base, 0.8125rem);
+  color: var(--slds-g-color-neutral-base-10, #2e2e2e);
+}
+
+.assigned-to-field {
+  min-width: 0;
+}
+
+.assignee-icon {
+  --slds-c-icon-color-foreground: var(--slds-g-color-neutral-base-50, #706e6b);
+}
+
+.assignee-name {
+  color: var(--slds-g-color-accent-1, #066afe);
+  white-space: nowrap;
+}

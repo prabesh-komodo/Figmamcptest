@@ -1,0 +1,91 @@
+<template>
+  <article
+    class="activity-card slds-grid slds-grid_vertical slds-p-horizontal_medium slds-p-top_medium slds-p-bottom_small"
+  >
+    <!-- Task Header: title on left, badge + icon button on right -->
+    <div
+      class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-bottom_small"
+    >
+      <span
+        class="task-title slds-text-title_bold slds-truncate slds-col slds-p-right_small"
+        >{taskTitle}</span
+      >
+      <div class="slds-grid slds-grid_vertical-align-center slds-shrink-none">
+        <lightning-badge
+          label={statusLabel}
+          variant="warning"
+          class="warning-badge slds-m-right_x-small"
+        ></lightning-badge>
+        <lightning-button-icon
+          icon-name="utility:edit"
+          variant="border"
+          size="x-small"
+          alternative-text="Edit activity"
+          onclick={handleEdit}
+        ></lightning-button-icon>
+      </div>
+    </div>
+
+    <!-- Task Details -->
+    <div class="slds-grid slds-grid_vertical">
+      <!-- Description -->
+      <div class="slds-grid slds-grid_vertical slds-m-bottom_small">
+        <span class="description-label slds-text-body_small">Description</span>
+        <p class="body-text slds-m-around_none">{description}</p>
+      </div>
+
+      <!-- Inner divider + metadata row -->
+      <div class="slds-grid slds-grid_vertical slds-m-bottom_xx-small">
+        <div class="slds-p-vertical_x-small">
+          <div class="slds-border_top"></div>
+        </div>
+        <div class="slds-grid">
+          <!-- Due Date -->
+          <div class="slds-grid slds-grid_vertical slds-m-right_x-large">
+            <span class="field-label slds-text-body_small">Due Date</span>
+            <span class="body-text">{dueDate}</span>
+          </div>
+          <!-- Assigned To -->
+          <div class="slds-grid slds-grid_vertical slds-col">
+            <span class="field-label slds-text-body_small">Assigned To</span>
+            <div
+              class="slds-grid slds-grid_vertical-align-center slds-p-vertical_xx-small"
+            >
+              <lightning-icon
+                icon-name="utility:user"
+                size="xx-small"
+                class="assignee-icon slds-m-right_xx-small"
+              ></lightning-icon>
+              <span class="assignee-name slds-text-body_small"
+                >{assignedTo}</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom divider -->
+      <div class="slds-p-vertical_x-small slds-m-bottom_xx-small">
+        <div class="slds-border_top"></div>
+      </div>
+
+      <!-- Task Actions -->
+      <div
+        class="slds-grid slds-grid_align-spread slds-grid_vertical-align-start"
+      >
+        <lightning-button
+          variant="neutral"
+          label="Transfer"
+          icon-name="utility:product_transfer"
+          onclick={handleTransfer}
+        ></lightning-button>
+        <lightning-button
+          variant="brand"
+          label="View Activity"
+          icon-name="utility:preview"
+          onclick={handleViewActivity}
+        ></lightning-button>
+      </div>
+    </div>
+  </article>
+</template>

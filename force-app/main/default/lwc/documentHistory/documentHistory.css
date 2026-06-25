@@ -1,0 +1,137 @@
+/* ── Timeline item structure ── */
+.dh-timeline-item {
+  position: relative;
+  padding-bottom: var(--slds-g-spacing-4, 1rem);
+}
+
+.dh-timeline-item::before {
+  display: none;
+}
+
+/* ── Figure layout: toggle + icon column side-by-side ── */
+.timeline-figure {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.timeline-toggle {
+  display: flex;
+  align-items: center;
+  padding-top: var(--slds-g-spacing-1, 0.25rem);
+}
+
+/* ── Icon column: circle on top, vertical bar below ── */
+.timeline-icon-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Icon circle (contains lightning-icon) ── */
+.timeline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--slds-g-sizing-7, 1.5rem);
+  height: var(--slds-g-sizing-7, 1.5rem);
+  border-radius: var(--slds-g-radius-border-circle, 50%);
+  flex-shrink: 0;
+}
+
+.timeline-icon_info {
+  background-color: var(--slds-g-color-info-1, #0b5cab);
+}
+
+.timeline-icon_success {
+  /* custom: no SLDS equivalent — Figma teal for document-created */
+  background-color: var(--c-timeline-teal, #06a59a);
+}
+
+.timeline-icon .icon-white {
+  --slds-c-icon-color-foreground-default: #fff;
+  --slds-c-icon-color-foreground: #fff;
+}
+
+/* ── Vertical timeline bar ── */
+.timeline-bar {
+  flex: 1 0 0;
+  min-height: var(--slds-g-spacing-4, 1rem);
+  width: var(--slds-g-sizing-border-2, 2px);
+  border-radius: var(--slds-g-radius-border-1, 0.25rem);
+  margin-top: var(--slds-g-spacing-1, 0.25rem);
+}
+
+.timeline-bar_info {
+  background-color: var(--slds-g-color-info-1, #0b5cab);
+}
+
+.timeline-bar_success {
+  /* custom: no SLDS equivalent — matches timeline-icon_success */
+  background-color: var(--c-timeline-teal, #06a59a);
+}
+
+/* ── Title link ── */
+.title-link {
+  color: var(--slds-g-color-accent-2, #0250d9);
+  font-weight: var(--slds-g-font-weight-6, 600);
+  font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+  cursor: pointer;
+}
+
+.title-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Timestamp ── */
+.timestamp-text {
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+  font-weight: var(--slds-g-font-weight-6, 600);
+  font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+  white-space: nowrap;
+}
+
+/* ── Description row ── */
+.description-text {
+  color: var(--slds-g-color-on-surface-1, #5c5c5c);
+  font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+}
+
+.actor-link {
+  color: var(--slds-g-color-accent-2, #0250d9);
+  font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+  cursor: pointer;
+}
+
+.actor-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Expanded detail box ── */
+.detail-box {
+  background-color: var(--slds-g-color-surface-container-2, #f3f3f3);
+  border: var(--slds-g-sizing-border-1, 1px) solid
+    var(--slds-g-color-border-1, #c9c9c9);
+  border-radius: var(--slds-g-radius-border-4, 0.75rem);
+}
+
+.detail-label {
+  color: var(--slds-g-color-on-surface-1, #5c5c5c);
+  font-size: var(--slds-g-font-scale-neg-2, 0.75rem);
+  margin-bottom: var(--slds-g-spacing-1, 0.25rem);
+}
+
+.detail-value {
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+  font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+}
+
+/* ── Trigger row alignment ── */
+.dh-trigger {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--slds-g-spacing-1, 0.25rem);
+  min-height: var(--slds-g-sizing-8, 1.75rem);
+  align-items: center;
+}

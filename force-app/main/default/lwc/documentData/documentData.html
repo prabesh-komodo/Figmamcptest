@@ -1,0 +1,36 @@
+<template>
+  <lightning-card hide-header="true">
+    <div class="slds-p-horizontal_medium">
+      <lightning-tabset active-tab-value={activeTab} onactive={handleTabChange}>
+        <lightning-tab
+          label="Generated Documents"
+          value="generated"
+          class="slds-p-top_medium slds-p-bottom_xx-small"
+        >
+          <lightning-datatable
+            key-field="id"
+            data={generatedDocuments}
+            columns={generatedDocColumns}
+            hide-checkbox-column
+            show-row-number-column="false"
+            onrowaction={handleRowAction}
+          ></lightning-datatable>
+        </lightning-tab>
+        <lightning-tab
+          label="Document Templates"
+          value="templates"
+          class="slds-p-top_medium slds-p-bottom_xx-small"
+        >
+          <lightning-datatable
+            key-field="id"
+            data={documentTemplates}
+            columns={templateColumns}
+            hide-checkbox-column
+            show-row-number-column="false"
+            onrowaction={handleRowAction}
+          ></lightning-datatable>
+        </lightning-tab>
+      </lightning-tabset>
+    </div>
+  </lightning-card>
+</template>
