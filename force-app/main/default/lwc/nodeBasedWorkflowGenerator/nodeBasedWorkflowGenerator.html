@@ -204,6 +204,7 @@
           onnodedelete={handleNodeDeleteEvent}
           onnodecollapse={handleNodeCollapseEvent}
           onportdragstart={handlePortDragStartEvent}
+          onnodedragstart={handleNodeDragStartEvent}
         >
           <template for:each={displayNodes} for:item="nodeItem">
             <c-workflow-node
@@ -224,6 +225,59 @@
         <div class="minimap-container" lwc:dom="manual"></div>
         <!-- Zoom indicator -->
         <div class="zoom-indicator">{zoomLabel}</div>
+
+        <!-- Node action popover -->
+        <template if:true={_popoverVisible}>
+          <div class="popover-backdrop" onclick={handlePopoverDismiss}></div>
+          <div
+            class="node-action-popover"
+            style={popoverStyle}
+            onclick={handlePopoverContentClick}
+          >
+            <template if:true={isPopoverMain}>
+              <button
+                class="popover-item"
+                data-action="newStage"
+                onclick={handlePopoverAction}
+              >
+                <span class="popover-item-icon">📄</span>
+                <span>Create New Stage</span>
+              </button>
+              <button
+                class="popover-item"
+                data-action="existingStage"
+                onclick={handlePopoverAction}
+              >
+                <span class="popover-item-icon">🔗</span>
+                <span>Transition to Existing Stage</span>
+              </button>
+            </template>
+            <template if:true={isPopoverStageList}>
+              <button
+                class="popover-back"
+                data-action="back"
+                onclick={handlePopoverAction}
+              >
+                ← Back
+              </button>
+              <div class="popover-stage-list">
+                <template for:each={popoverStageItems} for:item="stage">
+                  <button
+                    key={stage.id}
+                    class="popover-item"
+                    data-stage-id={stage.id}
+                    onclick={handlePopoverStageSelect}
+                  >
+                    {stage.label}
+                  </button>
+                </template>
+                <template if:true={popoverHasNoStages}>
+                  <div class="popover-empty">No other stages available</div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
       </div>
 
       <!-- Property Panel -->

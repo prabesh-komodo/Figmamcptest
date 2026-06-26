@@ -1,5 +1,5 @@
 <template>
-  <div class={cardClass}>
+  <div class={cardClass} onmousedown={handleCardMouseDown}>
     <!-- Delete button: hidden for root nodes -->
     <template if:true={isDeletable}>
       <button
@@ -93,9 +93,11 @@
       </div>
     </template>
 
-    <!-- Output port (bottom-center) -->
-    <div class="node-output-port" onmousedown={handlePortMouseDown}>
-      <span class="port-plus">+</span>
-    </div>
+    <!-- Output port (bottom-center): only stage nodes can add new stages -->
+    <template if:true={isStage}>
+      <div class="node-output-port" onmousedown={handlePortMouseDown}>
+        <span class="port-plus">+</span>
+      </div>
+    </template>
   </div>
 </template>

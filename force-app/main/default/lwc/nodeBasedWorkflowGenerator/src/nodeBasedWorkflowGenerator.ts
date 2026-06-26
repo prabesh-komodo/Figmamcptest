@@ -78,6 +78,9 @@ interface WorkflowNode {
     allowManualTransition?: boolean;
     isFinalStage?: boolean;
     isCollapsed?: boolean;
+    /* Set once the user drags the node — auto-layout then keeps this node at
+       its manual position instead of recomputing it.                         */
+    pinned?: boolean;
 }
 
 interface WorkflowLink {
@@ -85,6 +88,9 @@ interface WorkflowLink {
     source: string;
     target: string;
     label?: string;
+    /* True when this connector lands on a pre-existing stage (created via the
+       "connect to existing stage" action) — rendered with a distinct style.   */
+    toExistingStage?: boolean;
 }
 
 interface Pt {
@@ -109,6 +115,286 @@ interface LinkGeometry {
 }
 
 type PortSide = 'top' | 'bottom' | 'left' | 'right';
+
+/* ============================================================================
+ * ORTHOGONAL EDGE ROUTING — A* over a sparse "Hanan" grid
+ * ----------------------------------------------------------------------------
+ * Conceptually the canvas is a uniform cost map, but A*-ing across a per-pixel
+ * grid of a 6000×6000 canvas is hopeless (36M cells). The key insight from
+ * orthogonal-routing literature is that the ONLY x/y coordinates that can ever
+ * matter for a rectilinear route are those aligned with a port or with a
+ * (padded) obstacle boundary. We collect every such x and every such y; their
+ * lattice of intersections — the "Hanan grid" — is the search graph. That
+ * collapses millions of cells to a few hundred nodes while still containing an
+ * optimal orthogonal path.
+ *
+ * COST MODEL (per unit length travelled):
+ *   - empty space ....... BASE (1)
+ *   - obstacle core ..... Infinity  (strictly unwalkable)
+ *   - padding band ...... PADDING_PENALTY  (walkable but discouraged, so wires
+ *                         don't hug node edges)
+ * plus a fixed BEND_PENALTY on every 90° turn, so the router prefers a couple
+ * of long straight runs over a staircase of little jogs.
+ *
+ * HEURISTIC: Manhattan distance to the goal (× BASE). It never overestimates
+ * (bends and padding only add cost), so A* stays admissible.
+ *
+ * DIRECTIONAL PREFERENCE: every port has an outward normal (a 'right' port
+ * faces +x). We push a mandatory stub of length PORT_STUB straight out of each
+ * port before the search, and seed A* with the start port's direction so that
+ * continuing straight out is free while an immediate turn costs a bend. That
+ * guarantees the wire leaves/enters the node cleanly instead of shooting
+ * perpendicular across the port face.
+ * ==========================================================================*/
+
+type RouteDir = 'up' | 'down' | 'left' | 'right';
+
+interface RoutePort {
+    x: number;
+    y: number;
+    dir: RouteDir;   // outward normal: the direction the wire leaves the node
+}
+
+interface RouteObstacle {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+interface RouteOpts {
+    padding: number;         // thickness of the discouraged buffer band
+    paddingPenalty: number;  // cost multiplier inside that band
+    bendPenalty: number;     // flat extra cost per 90° corner
+    portStub: number;        // mandatory straight run out of each port
+    margin: number;          // how far the routable area extends past the bbox
+    maxGridCells: number;    // bail out (→ caller fallback) past this many nodes
+}
+
+const ROUTE_DEFAULTS: RouteOpts = {
+    padding: 26,
+    paddingPenalty: 6,
+    bendPenalty: 40,
+    portStub: 30,
+    margin: 80,
+    maxGridCells: 9000,
+};
+
+const DIR_DELTA: Record<RouteDir, Pt> = {
+    up:    { x: 0,  y: -1 },
+    down:  { x: 0,  y: 1  },
+    left:  { x: -1, y: 0  },
+    right: { x: 1,  y: 0  },
+};
+
+/* Sort ascending and drop near-duplicates (grid lines closer than 0.5px). */
+function sortedUnique(values: number[]): number[] {
+    const sorted: number[] = [...values].sort((a, b) => a - b);
+    const out: number[] = [];
+    for (const v of sorted) {
+        if (out.length === 0 || Math.abs(out[out.length - 1] - v) > 0.5) out.push(v);
+    }
+    return out;
+}
+
+/* Cost multiplier of a single point: Infinity inside a node (unwalkable),
+   PADDING_PENALTY inside the buffer band, BASE (1) in open space. Sampling a
+   single point is exact here because every obstacle boundary IS a grid line —
+   no boundary can fall strictly between two adjacent Hanan lines, so the whole
+   segment between them lives in one homogeneous region.                       */
+function pointCost(
+    x: number, y: number, obstacles: RouteObstacle[], padding: number, paddingPenalty: number
+): number {
+    let cost: number = 1;
+    for (const o of obstacles) {
+        const x1: number = o.x, x2: number = o.x + o.width;
+        const y1: number = o.y, y2: number = o.y + o.height;
+        if (x > x1 && x < x2 && y > y1 && y < y2) return Infinity;       // inside the node
+        /* Strictly INSIDE the band is costly; the band's outer edge lines
+           (obstacle ± padding) stay cheap, so a wire can hug at exactly the
+           padding distance without being pushed all the way to the margin.   */
+        if (x > x1 - padding && x < x2 + padding &&
+            y > y1 - padding && y < y2 + padding) {
+            cost = Math.max(cost, paddingPenalty);                       // inside the buffer band
+        }
+    }
+    return cost;
+}
+
+/* Drop coincident points and collapse runs of collinear points so the result
+   is just the corners of the orthogonal path.                                 */
+function simplifyOrthogonal(points: Pt[]): Pt[] {
+    const dedup: Pt[] = [];
+    for (const p of points) {
+        const last: Pt | undefined = dedup[dedup.length - 1];
+        if (!last || Math.abs(last.x - p.x) > 0.5 || Math.abs(last.y - p.y) > 0.5) dedup.push(p);
+    }
+    if (dedup.length <= 2) return dedup;
+    const out: Pt[] = [dedup[0]];
+    for (let i: number = 1; i < dedup.length - 1; i++) {
+        const a: Pt = out[out.length - 1], b: Pt = dedup[i], c: Pt = dedup[i + 1];
+        const collinear: boolean =
+            (Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5) ||
+            (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5);
+        if (!collinear) out.push(b);
+    }
+    out.push(dedup[dedup.length - 1]);
+    return out;
+}
+
+/* Compact binary min-heap — the A* open set, ordered by f-score. */
+class MinHeap<T> {
+    private items: T[] = [];
+    private cmp: (a: T, b: T) => number;
+    constructor(cmp: (a: T, b: T) => number) {
+        this.cmp = cmp;
+    }
+    get size(): number { return this.items.length; }
+    push(v: T): void {
+        const a: T[] = this.items;
+        a.push(v);
+        let i: number = a.length - 1;
+        while (i > 0) {
+            const p: number = (i - 1) >> 1;
+            if (this.cmp(a[i], a[p]) < 0) { [a[i], a[p]] = [a[p], a[i]]; i = p; } else break;
+        }
+    }
+    pop(): T | undefined {
+        const a: T[] = this.items;
+        if (a.length === 0) return undefined;
+        const top: T = a[0];
+        const last: T = a.pop() as T;
+        if (a.length > 0) {
+            a[0] = last;
+            let i: number = 0;
+            const n: number = a.length;
+            for (;;) {
+                const l: number = 2 * i + 1, r: number = 2 * i + 2;
+                let s: number = i;
+                if (l < n && this.cmp(a[l], a[s]) < 0) s = l;
+                if (r < n && this.cmp(a[r], a[s]) < 0) s = r;
+                if (s === i) break;
+                [a[i], a[s]] = [a[s], a[i]];
+                i = s;
+            }
+        }
+        return top;
+    }
+}
+
+const DIR_CODE: Record<RouteDir, number> = { up: 0, down: 1, left: 2, right: 3 };
+
+/* Route an orthogonal wire from `start` to `end` avoiding `obstacles`.
+   Returns the corner waypoints (including the two real port points), or null
+   if no path exists / the grid is too dense (caller should fall back).        */
+function routeOrthogonal(
+    start: RoutePort, end: RoutePort, obstacles: RouteObstacle[], options?: Partial<RouteOpts>
+): Pt[] | null {
+    const opt: RouteOpts = { ...ROUTE_DEFAULTS, ...(options || {}) };
+
+    /* 1. Mandatory outward stubs — the wire must leave/enter along the normal. */
+    const sStub: Pt = {
+        x: start.x + DIR_DELTA[start.dir].x * opt.portStub,
+        y: start.y + DIR_DELTA[start.dir].y * opt.portStub,
+    };
+    const eStub: Pt = {
+        x: end.x + DIR_DELTA[end.dir].x * opt.portStub,
+        y: end.y + DIR_DELTA[end.dir].y * opt.portStub,
+    };
+
+    /* 2. Build the sparse Hanan grid lines from ports, stubs and padded edges. */
+    const xsRaw: number[] = [start.x, end.x, sStub.x, eStub.x];
+    const ysRaw: number[] = [start.y, end.y, sStub.y, eStub.y];
+    for (const o of obstacles) {
+        xsRaw.push(o.x - opt.padding, o.x + o.width + opt.padding);
+        ysRaw.push(o.y - opt.padding, o.y + o.height + opt.padding);
+    }
+    /* Outer ring so a route can always escape around the whole obstacle field. */
+    xsRaw.push(Math.min(...xsRaw) - opt.margin, Math.max(...xsRaw) + opt.margin);
+    ysRaw.push(Math.min(...ysRaw) - opt.margin, Math.max(...ysRaw) + opt.margin);
+
+    const xs: number[] = sortedUnique(xsRaw);
+    const ys: number[] = sortedUnique(ysRaw);
+    const W: number = xs.length, H: number = ys.length;
+    if (W * H > opt.maxGridCells) return null;
+
+    const xi: Map<number, number> = new Map(); xs.forEach((v, i) => xi.set(v, i));
+    const yi: Map<number, number> = new Map(); ys.forEach((v, i) => yi.set(v, i));
+    const sI: number = xi.get(sStub.x) as number, sJ: number = yi.get(sStub.y) as number;
+    const eI: number = xi.get(eStub.x) as number, eJ: number = yi.get(eStub.y) as number;
+
+    /* State = (grid node, arrival direction). Direction is part of the state so
+       the bend penalty is accounted for correctly (turn-aware A*).             */
+    const stateKey = (i: number, j: number, d: number): number => (j * W + i) * 4 + d;
+    const manhattan = (ax: number, ay: number): number => Math.abs(ax - eStub.x) + Math.abs(ay - eStub.y);
+
+    const gScore: Map<number, number> = new Map();
+    const cameFrom: Map<number, { i: number; j: number; d: number }> = new Map();
+    const closed: Set<number> = new Set();
+    const open = new MinHeap<{ i: number; j: number; d: number; f: number }>((a, b) => a.f - b.f);
+
+    const startCode: number = DIR_CODE[start.dir];
+    gScore.set(stateKey(sI, sJ, startCode), 0);
+    open.push({ i: sI, j: sJ, d: startCode, f: manhattan(xs[sI], ys[sJ]) });
+
+    /* Neighbour moves, tagged with the direction they travel in. */
+    const MOVES: Array<{ di: number; dj: number; d: number }> = [
+        { di: 0, dj: -1, d: DIR_CODE.up },
+        { di: 0, dj: 1,  d: DIR_CODE.down },
+        { di: -1, dj: 0, d: DIR_CODE.left },
+        { di: 1, dj: 0,  d: DIR_CODE.right },
+    ];
+
+    let goal: { i: number; j: number; d: number } | null = null;
+
+    while (open.size > 0) {
+        const cur = open.pop() as { i: number; j: number; d: number; f: number };
+        const ck: number = stateKey(cur.i, cur.j, cur.d);
+        if (closed.has(ck)) continue;
+        closed.add(ck);
+
+        if (cur.i === eI && cur.j === eJ) { goal = cur; break; }
+
+        const cg: number = gScore.get(ck) as number;
+        const ax: number = xs[cur.i], ay: number = ys[cur.j];
+
+        for (const m of MOVES) {
+            const ni: number = cur.i + m.di, nj: number = cur.j + m.dj;
+            if (ni < 0 || nj < 0 || ni >= W || nj >= H) continue;
+            const bx: number = xs[ni], by: number = ys[nj];
+
+            /* Segment cost: blocked if it crosses a node core; otherwise length
+               × region multiplier, plus a bend penalty if we change direction. */
+            const region: number = pointCost((ax + bx) / 2, (ay + by) / 2, obstacles, opt.padding, opt.paddingPenalty);
+            if (!isFinite(region)) continue;
+            const len: number = Math.abs(bx - ax) + Math.abs(by - ay);
+            let step: number = len * region;
+            if (m.d !== cur.d) step += opt.bendPenalty;
+
+            const nk: number = stateKey(ni, nj, m.d);
+            const ng: number = cg + step;
+            if (ng < (gScore.get(nk) ?? Infinity)) {
+                gScore.set(nk, ng);
+                cameFrom.set(nk, { i: cur.i, j: cur.j, d: cur.d });
+                open.push({ i: ni, j: nj, d: m.d, f: ng + manhattan(bx, by) });
+            }
+        }
+    }
+
+    if (!goal) return null;
+
+    /* 3. Walk the came-from chain back to the start stub. */
+    const path: Pt[] = [];
+    let node: { i: number; j: number; d: number } | undefined = goal;
+    while (node) {
+        path.push({ x: xs[node.i], y: ys[node.j] });
+        node = cameFrom.get(stateKey(node.i, node.j, node.d));
+    }
+    path.reverse();
+
+    /* 4. Bookend with the true port points and reduce to corners. */
+    return simplifyOrthogonal([{ x: start.x, y: start.y }, ...path, { x: end.x, y: end.y }]);
+}
 
 interface LinkPortPositions {
     exit: Pt;
@@ -162,6 +448,11 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     @track _overlayTransformCss: string = '';
     @track _connectTargetId: string | null = null;
     @track _executingNodeIds: Set<string> = new Set();
+    @track _popoverVisible: boolean = false;
+    @track _popoverMode: string = 'main';
+    @track _popoverSourceId: string | null = null;
+    @track _popoverX: number = 0;
+    @track _popoverY: number = 0;
 
     _undoStack: UndoState[] = [];
     _redoStack: UndoState[] = [];
@@ -217,6 +508,23 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     get isSelectedStage(): boolean      { return !!(this.selectedNode && this.selectedNode.nodeType === 'stage'); }
     get isSelectedTransition(): boolean { return !!(this.selectedNode && this.selectedNode.nodeType === 'transition'); }
     get isSelectedDeletable(): boolean  { return !!(this.selectedNode && this.selectedNode.nodeType !== 'root'); }
+
+    get isPopoverMain(): boolean { return this._popoverVisible && this._popoverMode === 'main'; }
+    get isPopoverStageList(): boolean { return this._popoverVisible && this._popoverMode === 'stageList'; }
+
+    get popoverStyle(): string {
+        return `left:${this._popoverX}px;top:${this._popoverY}px`;
+    }
+
+    get popoverStageItems(): Array<{ id: string; label: string }> {
+        return this._nodes
+            .filter(n => n.nodeType === 'stage' && n.id !== this._popoverSourceId)
+            .map(n => ({ id: n.id, label: n.label }));
+    }
+
+    get popoverHasNoStages(): boolean {
+        return this.popoverStageItems.length === 0;
+    }
 
     /* ===================== Lifecycle ===================== */
 
@@ -301,10 +609,6 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
                 allowManualTransition: false, isFinalStage: true,
                 x: 0, y: 0,
             },
-            {
-                id: 'n9', nodeType: 'transition', label: 'Transition to Something',
-                x: 0, y: 0,
-            },
         ];
         this._links = [
             { id: 'l1', source: 'n1', target: 'n2' },
@@ -314,7 +618,6 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             { id: 'l5', source: 'n4', target: 'n7' },
             { id: 'l6', source: 'n5', target: 'n6' },
             { id: 'l7', source: 'n6', target: 'n8' },
-            { id: 'l8', source: 'n8', target: 'n9' },
         ];
     }
 
@@ -404,15 +707,28 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
         const positioned: Set<string> = new Set();
 
-        const positionSubtree = (nodeId: string, centerX: number): void => {
+        /* parentBottom is the y of the lowest edge of the chain above this node.
+           Unpinned nodes sit at their layer's y, but never above a pinned
+           ancestor that was dragged further down. Pinned nodes keep the exact
+           position the user dragged them to, and their children fan out from
+           that actual centre — so manual drags are respected while everything
+           else still fans out and makes room.                                 */
+        const positionSubtree = (nodeId: string, centerX: number, parentBottom: number): void => {
             if (positioned.has(nodeId)) return;
             positioned.add(nodeId);
             const node: WorkflowNode | undefined = nodeMap.get(nodeId);
             if (!node) return;
 
             const depth: number = nodeDepth.get(nodeId) || 0;
-            node.x = centerX - NODE_W / 2;
-            node.y = layerY.get(depth) || 200;
+            let nodeCenterX: number;
+            if (node.pinned) {
+                nodeCenterX = node.x + NODE_W / 2;        // keep dragged x/y verbatim
+            } else {
+                node.y = Math.max(layerY.get(depth) || 200, parentBottom + BASE_LAYER_GAP);
+                node.x = centerX - NODE_W / 2;
+                nodeCenterX = centerX;
+            }
+            const nodeBottom: number = node.y + getNodeH(node);
 
             /* Filter out back-edge targets already placed elsewhere so their
                stored subtreeWidth doesn't skew this node's child layout. */
@@ -423,11 +739,12 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             const totalChildW: number = childWidths.reduce((sum, w) => sum + w, 0)
                 + (children.length - 1) * MIN_SIBLING_GAP_X;
 
-            let childX: number = centerX - totalChildW / 2;
+            /* Fan the children out symmetrically around this node's centre. */
+            let childX: number = nodeCenterX - totalChildW / 2;
             children.forEach((cId: string, i: number) => {
                 const cw: number = childWidths[i];
                 const childCenter: number = childX + cw / 2;
-                positionSubtree(cId, childCenter);
+                positionSubtree(cId, childCenter, nodeBottom);
                 childX += cw + MIN_SIBLING_GAP_X;
             });
         };
@@ -439,13 +756,13 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
         roots.forEach((r: WorkflowNode, i: number) => {
             const rw: number = rootWidths[i];
-            positionSubtree(r.id, rootX + rw / 2);
+            positionSubtree(r.id, rootX + rw / 2, -Infinity);
             rootX += rw + MIN_SIBLING_GAP_X;
         });
 
         this._nodes.forEach(n => {
             if (!positioned.has(n.id)) {
-                positionSubtree(n.id, CANVAS_W / 2);
+                positionSubtree(n.id, CANVAS_W / 2, -Infinity);
             }
         });
     }
@@ -469,9 +786,18 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             return { exitSide: 'bottom', entrySide: 'top' };
         }
         if (tgtBottom <= srcTop + MIN_STUB) {
-            /* Back-edge: route the full arc on the right channel so it never
-               crosses the inter-layer horizontal runs of forward connectors. */
-            return { exitSide: 'right', entrySide: 'right' };
+            /* Back-edge (target above source). Choose each end's side
+               independently from the other node's position:
+                - exit the source on the side facing the target
+                - enter the target on the side facing the source
+               Near-aligned columns (within NODE_W/3) can't face each other
+               cleanly, so wrap around the left as a same-side loopback.        */
+            if (Math.abs(srcCx - tgtCx) <= NODE_W / 3) {
+                return { exitSide: 'left', entrySide: 'left' };
+            }
+            return tgtCx < srcCx
+                ? { exitSide: 'left',  entrySide: 'right' }   // target sits to the left
+                : { exitSide: 'right', entrySide: 'left'  };  // target sits to the right
         }
         /* Vertical overlap -> attach on the facing sides */
         if (tgtCx >= srcCx) {
@@ -852,32 +1178,42 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         return [{ x: x1, y: y1 }, { x: x1, y: mid }, { x: x2, y: mid }, { x: x2, y: y2 }];
     }
 
-    /* Side-exit, top-entry route (used for back-edges where the target sits
-       above the source). Exits the left/right side, arcs around past any
-       obstacles on that side, then drops into the TARGET from the TOP so the
-       arrow still points downward.                                            */
-    /* Back-edge arc: exits the RIGHT side of the source, travels to a clear
-       right channel past every node in the vertical band, travels UP to the
-       target's right-side entry level, and enters the TARGET from the right.
-       The path never crosses any forward-connector inter-layer band.          */
+    /* Back-edge arc: travels to a clear channel on the requested side,
+       then up/down to the target's port. Supports left and right channels.   */
     _loopbackPolyline(
-        exit: Pt, entry: Pt, boxes: NodeBox[], excludeIds: Set<string>
+        exit: Pt, entry: Pt, _boxes: NodeBox[], _excludeIds: Set<string>,
+        side: 'left' | 'right' = 'right',
+        tgtBox?: NodeBox
     ): Pt[] {
-        const yLo: number = Math.min(exit.y, entry.y);
-        const yHi: number = Math.max(exit.y, entry.y);
+        /* Horizontal crossing band: the inter-row gap just below the target node.
+           CHANNEL_MARGIN (48 px) for side stubs keeps the connector clearly
+           separated from node card edges — well within the 60 px sibling gap.    */
+        const armY: number = tgtBox
+            ? tgtBox.y + tgtBox.h + CHANNEL_MARGIN + MIN_STUB
+            : (exit.y + entry.y) / 2;
 
-        let farX: number = Math.max(exit.x, entry.x) + CHANNEL_MARGIN * 2;
-        boxes.forEach((box: NodeBox) => {
-            if (excludeIds.has(box.id)) return;
-            if (box.y + box.h + NODE_CLEAR < yLo || box.y - NODE_CLEAR > yHi) return;
-            farX = Math.max(farX, box.x + box.w + CHANNEL_MARGIN * 2);
-        });
+        if (side === 'left') {
+            const stubExit: number  = exit.x  - CHANNEL_MARGIN;
+            const stubEntry: number = entry.x - CHANNEL_MARGIN;
+            return [
+                { x: exit.x,    y: exit.y  },
+                { x: stubExit,  y: exit.y  },
+                { x: stubExit,  y: armY    },
+                { x: stubEntry, y: armY    },
+                { x: stubEntry, y: entry.y },
+                { x: entry.x,   y: entry.y },
+            ];
+        }
 
+        const stubExit: number  = exit.x  + CHANNEL_MARGIN;
+        const stubEntry: number = entry.x + CHANNEL_MARGIN;
         return [
-            { x: exit.x, y: exit.y },
-            { x: farX,   y: exit.y },
-            { x: farX,   y: entry.y },
-            { x: entry.x, y: entry.y },
+            { x: exit.x,    y: exit.y  },
+            { x: stubExit,  y: exit.y  },
+            { x: stubExit,  y: armY    },
+            { x: stubEntry, y: armY    },
+            { x: stubEntry, y: entry.y },
+            { x: entry.x,   y: entry.y },
         ];
     }
 
@@ -933,6 +1269,31 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         ];
     }
 
+    /* Adapter: map this component's port/box types onto the standalone A*
+       router. The source exits along its side's outward normal; the target is
+       entered along its side's outward normal. Boxes for the two endpoints are
+       excluded so the wire is allowed to touch its own nodes.                  */
+    _routeAStar(
+        exit: Pt, exitSide: PortSide, entry: Pt, entrySide: PortSide,
+        boxes: NodeBox[], excludeIds: Set<string>
+    ): Pt[] | null {
+        const SIDE_DIR: Record<PortSide, RouteDir> = {
+            top: 'up', bottom: 'down', left: 'left', right: 'right',
+        };
+        const obstacles: RouteObstacle[] = boxes
+            .filter((b: NodeBox) => !excludeIds.has(b.id))
+            .map((b: NodeBox) => ({ x: b.x, y: b.y, width: b.w, height: b.h }));
+        try {
+            return routeOrthogonal(
+                { x: exit.x,  y: exit.y,  dir: SIDE_DIR[exitSide] },
+                { x: entry.x, y: entry.y, dir: SIDE_DIR[entrySide] },
+                obstacles
+            );
+        } catch {
+            return null;
+        }
+    }
+
     _computeLinkGeometry(
         src: WorkflowNode, tgt: WorkflowNode, portPos: LinkPortPositions | undefined, boxes: NodeBox[]
     ): LinkGeometry {
@@ -944,17 +1305,39 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         const laneCount: number = portPos ? portPos.laneCount : 1;
 
         const excludeIds: Set<string> = new Set([src.id, tgt.id]);
+        const tgtBox: NodeBox | undefined = boxes.find((b: NodeBox) => b.id === tgt.id);
 
         let points: Pt[];
-        let isLoopback: boolean = false;
+        /* A cycle (back-edge) is any link whose target sits at/above its source
+           — used purely for styling, independent of how it gets routed.        */
+        const isLoopback: boolean = tgt.y + getNodeH(tgt) <= src.y + MIN_STUB;
 
         if (exitSide === 'bottom' && entrySide === 'top') {
+            /* Standard downward tree edge: keep the lane-aware forward router so
+               sibling connectors stay evenly fanned out.                       */
             points = this._forwardPolyline(exit.x, exit.y, entry.x, entry.y, laneIndex, laneCount, boxes, excludeIds);
-        } else if (exitSide === 'right' && entrySide === 'right') {
-            points = this._loopbackPolyline(exit, entry, boxes, excludeIds);
-            isLoopback = true;
         } else {
-            points = this._sidewaysPolyline(exit, exitSide, entry, entrySide, laneIndex, laneCount, boxes, excludeIds);
+            /* Everything else (back-edges, side joins, obstacle-laden routes) is
+               handled by the A* orthogonal router, which avoids node cores and
+               their padding bands. Fall back to the hand-rolled routines if A*
+               can't find a path or the grid is too dense.                      */
+            const aStar: Pt[] | null = this._routeAStar(exit, exitSide, entry, entrySide, boxes, excludeIds);
+            if (aStar && aStar.length >= 2) {
+                points = aStar;
+            } else if ((exitSide === 'right' && entrySide === 'right') || (exitSide === 'left' && entrySide === 'left')) {
+                const classifiedSide: 'left' | 'right' = exitSide as 'left' | 'right';
+                const srcCx: number = src.x + NODE_W / 2;
+                const tgtCx: number = tgt.x + NODE_W / 2;
+                if (Math.abs(srcCx - tgtCx) <= NODE_W / 3) {
+                    const lExit: Pt  = { x: src.x, y: exit.y };
+                    const lEntry: Pt = { x: tgt.x, y: entry.y };
+                    points = this._loopbackPolyline(lExit, lEntry, boxes, excludeIds, 'left', tgtBox);
+                } else {
+                    points = this._loopbackPolyline(exit, entry, boxes, excludeIds, classifiedSide, tgtBox);
+                }
+            } else {
+                points = this._sidewaysPolyline(exit, exitSide, entry, entrySide, laneIndex, laneCount, boxes, excludeIds);
+            }
         }
 
         /* Label: prefer the longest horizontal segment; fall back to longest
@@ -1112,13 +1495,25 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
         const defs: D3Selection = svg.append('defs');
 
+        /* Arrow (target end) and dot (source end) for every connector. Both use
+           `context-stroke` so the marker always matches its line's colour.      */
         defs.append('marker')
             .attr('id', 'mas-arrow')
             .attr('viewBox', '0 0 10 10')
-            .attr('refX', 10).attr('refY', 5)
-            .attr('markerWidth', 10).attr('markerHeight', 10)
+            .attr('refX', 9).attr('refY', 5)
+            .attr('markerUnits', 'userSpaceOnUse')
+            .attr('markerWidth', 11).attr('markerHeight', 11)
+            .attr('orient', 'auto-start-reverse')
+            .append('path').attr('d', 'M1,2 L9,5 L1,8 Z').attr('fill', 'context-stroke');
+
+        defs.append('marker')
+            .attr('id', 'mas-dot')
+            .attr('viewBox', '0 0 10 10')
+            .attr('refX', 5).attr('refY', 5)
+            .attr('markerUnits', 'userSpaceOnUse')
+            .attr('markerWidth', 8).attr('markerHeight', 8)
             .attr('orient', 'auto')
-            .append('path').attr('d', 'M1,2.5 L8,5 L1,7.5 Z').attr('fill', LINK_COLOR);
+            .append('circle').attr('cx', 5).attr('cy', 5).attr('r', 3.2).attr('fill', 'context-stroke');
 
         defs.append('marker')
             .attr('id', 'mas-arrow-active')
@@ -1184,6 +1579,42 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
     /* ===================== Link Rendering (SVG only) ===================== */
 
+    /* Identify links that are genuine cycles (back-edges): an edge whose target
+       is an ancestor of its source in the workflow graph. Driven by topology,
+       NOT geometry, so a forward edge never looks like a cycle just because a
+       node was dragged to sit physically above its neighbour.                 */
+    _computeBackEdges(): Set<string> {
+        const childLinks: Map<string, WorkflowLink[]> = new Map();
+        const hasParent: Set<string> = new Set();
+        this._links.forEach((l: WorkflowLink) => {
+            if (!childLinks.has(l.source)) childLinks.set(l.source, []);
+            childLinks.get(l.source)!.push(l);
+            hasParent.add(l.target);
+        });
+        const roots: WorkflowNode[] = this._nodes.filter(n => !hasParent.has(n.id));
+        if (roots.length === 0 && this._nodes.length > 0) roots.push(this._nodes[0]);
+
+        const backEdges: Set<string> = new Set();
+        const onStack: Set<string> = new Set();
+        const done: Set<string> = new Set();
+
+        const dfs = (nodeId: string): void => {
+            onStack.add(nodeId);
+            for (const link of (childLinks.get(nodeId) || [])) {
+                if (onStack.has(link.target)) {
+                    backEdges.add(link.id);          // points back to an ancestor → cycle
+                } else if (!done.has(link.target)) {
+                    dfs(link.target);
+                }
+            }
+            onStack.delete(nodeId);
+            done.add(nodeId);
+        };
+        roots.forEach(r => { if (!done.has(r.id)) dfs(r.id); });
+        this._nodes.forEach(n => { if (!done.has(n.id)) dfs(n.id); });  // disconnected nodes
+        return backEdges;
+    }
+
     _renderLinks(): void {
         const d3: D3Static = this._d3!;
         if (!this._zoomGroup) return;
@@ -1192,6 +1623,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         const nodeMap: Map<string, WorkflowNode> = new Map(this._nodes.map(n => [n.id, n]));
         const linkPorts: Map<string, LinkPortPositions> = this._computeLinkPorts();
         const boxes: NodeBox[] = this._buildNodeBoxes();
+        const backEdges: Set<string> = this._computeBackEdges();
 
         const geoms: Array<{ link: WorkflowLink; geo: LinkGeometry }> = [];
         this._links.forEach((link: WorkflowLink) => {
@@ -1220,22 +1652,32 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
             const dStr: string = self._buildOrthPath(geo.points, geo.hops);
 
+            /* Back-edge (cycle) and "connect to existing stage" links share one
+               look (amber, dashed) — both join to an already-placed stage.
+               Cycle detection is topological (backEdges), not geometric, so
+               dragging a node higher never re-styles a normal edge as a cycle.
+               Every connector gets a dot at the source end and an arrow at the
+               target end.                                                      */
+            const special: boolean = backEdges.has(link.id) || !!link.toExistingStage;
+
             g.append('path')
-                .attr('class', 'mas-link' + (geo.isLoopback ? ' mas-link--loopback' : ''))
+                .attr('class', 'mas-link' + (special ? ' mas-link--special' : ''))
                 .attr('d', dStr)
                 .attr('fill', 'none')
-                .attr('stroke', geo.isLoopback ? '#d29922' : LINK_COLOR)
-                .attr('stroke-width', geo.isLoopback ? 2 : 2.5)
+                .attr('stroke', special ? '#d29922' : LINK_COLOR)
+                .attr('stroke-width', special ? 2 : 2.5)
                 .attr('stroke-linecap', 'round')
-                .attr('stroke-linejoin', 'round');
+                .attr('stroke-linejoin', 'round')
+                .attr('marker-start', 'url(#mas-dot)')
+                .attr('marker-end', 'url(#mas-arrow)');
 
-            if (geo.isLoopback) {
-                g.select('.mas-link').attr('stroke-dasharray', '4 3');
+            if (special) {
+                g.select('.mas-link').attr('stroke-dasharray', '6 4');
             }
 
             if (link.label) {
                 const offsetX: number = link.label === 'Yes' ? -28 : 28;
-                const lx: number = geo.labelX + (geo.isLoopback ? 10 : offsetX);
+                const lx: number = geo.labelX + (special ? 10 : offsetX);
                 const ly: number = geo.labelY;
 
                 g.append('rect')
@@ -1307,6 +1749,70 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         this._beginPortDrag({ clientX, clientY } as MouseEvent, node);
     }
 
+    handleNodeDragStartEvent(event: CustomEvent): void {
+        const { nodeId, clientX, clientY } = event.detail;
+        if (nodeId) this._beginNodeDrag(nodeId, clientX, clientY);
+    }
+
+    /* ===================== Node Dragging (move) ===================== */
+
+    /* Free-move a node by following the pointer. Client deltas are divided by
+       the current zoom scale to convert screen pixels to canvas units. The drag
+       only "engages" past a small threshold so a plain click still selects, and
+       undo state is captured once, when the move actually begins.             */
+    _beginNodeDrag(nodeId: string, clientX: number, clientY: number): void {
+        const self = this;
+        const node: WorkflowNode | undefined = this._nodes.find(n => n.id === nodeId);
+        if (!node) return;
+
+        const startNodeX: number = node.x;
+        const startNodeY: number = node.y;
+        const startClientX: number = clientX;
+        const startClientY: number = clientY;
+        let moved: boolean = false;
+        let rafId: number = 0;
+        let lastClientX: number = clientX;
+        let lastClientY: number = clientY;
+
+        const updateFrame = (): void => {
+            rafId = 0;
+            const k: number = (self._currentTransform ? self._currentTransform.k : 1) || 1;
+            node.x = startNodeX + (lastClientX - startClientX) / k;
+            node.y = startNodeY + (lastClientY - startClientY) / k;
+            self._nodes = [...self._nodes];   // reactive re-position of the card
+            self._renderLinks();              // reroute connectors to the new spot
+        };
+
+        const onMouseMove = (e: MouseEvent): void => {
+            e.preventDefault();
+            lastClientX = e.clientX;
+            lastClientY = e.clientY;
+            if (!moved) {
+                if (Math.abs(e.clientX - startClientX) + Math.abs(e.clientY - startClientY) < 4) return;
+                moved = true;
+                self._pushUndo();
+                node.pinned = true;   // manual position — auto-layout will respect it
+            }
+            if (!rafId) {
+                // eslint-disable-next-line @lwc/lwc/no-async-operation -- throttle node drag redraws
+                rafId = requestAnimationFrame(updateFrame);
+            }
+        };
+
+        const onMouseUp = (): void => {
+            document.removeEventListener('mousemove', onMouseMove, true);
+            document.removeEventListener('mouseup', onMouseUp, true);
+            if (rafId) cancelAnimationFrame(rafId);
+            if (moved) {
+                self._nodes = [...self._nodes];
+                self._renderLinks();
+            }
+        };
+
+        document.addEventListener('mousemove', onMouseMove, true);
+        document.addEventListener('mouseup', onMouseUp, true);
+    }
+
     /* ===================== Delete Node ===================== */
 
     _deleteNode(nodeId: string): void {
@@ -1329,16 +1835,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             this._links = this._links.filter(l => !removeIds.has(l.source) && !removeIds.has(l.target));
             this._nodes = this._nodes.filter(n => !removeIds.has(n.id));
         } else {
-            const inLinks: WorkflowLink[] = this._links.filter(l => l.target === nodeId);
-            const outLinks: WorkflowLink[] = this._links.filter(l => l.source === nodeId);
+            /* Transition deleted: remove it and all its connections — no bridging. */
             this._links = this._links.filter(l => l.source !== nodeId && l.target !== nodeId);
-            if (inLinks.length === 1 && outLinks.length === 1) {
-                this._links.push({
-                    id: 'l_bridge_' + Date.now(),
-                    source: inLinks[0].source,
-                    target: outLinks[0].target,
-                });
-            }
             this._nodes = this._nodes.filter(n => n.id !== nodeId);
         }
 
@@ -1432,7 +1930,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             self._connectTargetId = null;
 
             if (totalDist < 6) {
-                self._addNodeBelow(sourceNode);
+                self._showActionPopover(sourceNode, mousedownEvent.clientX, mousedownEvent.clientY);
                 return;
             }
 
@@ -1440,17 +1938,38 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             const target: WorkflowNode | null = self._hitTestNode(canvas.x, canvas.y, srcId);
 
             if (target) {
-                const exactDuplicate: boolean = self._links.some(
-                    l => l.source === srcId && l.target === target.id
-                );
-                if (!exactDuplicate && srcId !== target.id) {
+                const srcNode: WorkflowNode | undefined = self._nodes.find(n => n.id === srcId);
+                if (srcNode && srcNode.nodeType === 'stage' && target.nodeType === 'stage') {
+                    /* stage→stage: auto-insert a transition to enforce the rule
+                       that every stage-to-stage path has a transition block. */
                     self._pushUndo();
-                    self._links.push({
-                        id: 'l_conn_' + Date.now(),
-                        source: srcId,
-                        target: target.id,
-                    });
+                    const transId: string = nextId();
+                    const transNode: WorkflowNode = {
+                        id: transId,
+                        nodeType: 'transition',
+                        label: 'New Transition',
+                        x: (srcNode.x + target.x) / 2,
+                        y: (srcNode.y + target.y) / 2,
+                    };
+                    self._nodes = [...self._nodes, transNode];
+                    self._links.push(
+                        { id: 'l_t1_' + transId, source: srcId, target: transId },
+                        { id: 'l_t2_' + transId, source: transId, target: target.id },
+                    );
                     self._renderLinks();
+                } else {
+                    const exactDuplicate: boolean = self._links.some(
+                        l => l.source === srcId && l.target === target.id
+                    );
+                    if (!exactDuplicate && srcId !== target.id) {
+                        self._pushUndo();
+                        self._links.push({
+                            id: 'l_conn_' + Date.now(),
+                            source: srcId,
+                            target: target.id,
+                        });
+                        self._renderLinks();
+                    }
                 }
             }
         };
@@ -1473,35 +1992,160 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         return null;
     }
 
+    /* ===================== Popover ===================== */
+
+    _showActionPopover(sourceNode: WorkflowNode, clientX: number, clientY: number): void {
+        const container = this.template.querySelector('.studio-canvas') as HTMLElement;
+        const rect: DOMRect = container.getBoundingClientRect();
+        this._popoverX = clientX - rect.left + 12;
+        this._popoverY = clientY - rect.top + 12;
+        this._popoverSourceId = sourceNode.id;
+        this._popoverMode = 'main';
+        this._popoverVisible = true;
+    }
+
+    handlePopoverDismiss(): void {
+        this._popoverVisible = false;
+    }
+
+    handlePopoverContentClick(event: Event): void {
+        event.stopPropagation();
+    }
+
+    handlePopoverAction(event: Event): void {
+        event.stopPropagation();
+        const action: string | undefined = (event.currentTarget as HTMLElement).dataset.action;
+        if (action === 'newStage') {
+            this._popoverVisible = false;
+            const src: WorkflowNode | undefined = this._nodes.find(n => n.id === this._popoverSourceId);
+            if (src) this._addNodeBelow(src);
+        } else if (action === 'existingStage') {
+            this._popoverMode = 'stageList';
+        } else if (action === 'back') {
+            this._popoverMode = 'main';
+        }
+    }
+
+    handlePopoverStageSelect(event: Event): void {
+        event.stopPropagation();
+        const targetId: string | undefined = (event.currentTarget as HTMLElement).dataset.stageId;
+        const sourceId: string | null = this._popoverSourceId;
+        this._popoverVisible = false;
+        if (sourceId && targetId) this._connectToExistingStage(sourceId, targetId);
+    }
+
+    /* Find a position for a w×h card near (desiredX, desiredY) that doesn't
+       overlap any existing node (with PAD clearance). Existing cards — the
+       target especially — are never moved; we search outward from the desired
+       spot and drop the new card into the closest free space, preferring a
+       sideways slot in the same row before stepping down a row.               */
+    _findFreePosition(desiredX: number, desiredY: number, w: number, h: number): Pt {
+        const PAD: number = 32;
+        const overlaps = (x: number, y: number): boolean =>
+            this._nodes.some((n: WorkflowNode) => {
+                const nw: number = NODE_W, nh: number = getNodeH(n);
+                return x - PAD < n.x + nw && x + w + PAD > n.x &&
+                       y - PAD < n.y + nh && y + h + PAD > n.y;
+            });
+
+        if (!overlaps(desiredX, desiredY)) return { x: desiredX, y: desiredY };
+
+        const colStep: number = NODE_W + MIN_SIBLING_GAP_X;   // one column over
+        const rowStep: number = h + BASE_LAYER_GAP;           // one row down
+        for (let ring: number = 1; ring <= 12; ring++) {
+            const candidates: Pt[] = [];
+            for (let dx: number = -ring; dx <= ring; dx++) {
+                for (let dy: number = 0; dy <= ring; dy++) {        // only sideways / downward
+                    if (Math.max(Math.abs(dx), dy) !== ring) continue; // ring perimeter only
+                    candidates.push({ x: desiredX + dx * colStep, y: desiredY + dy * rowStep });
+                }
+            }
+            /* Closest first; weight vertical moves slightly so a free sideways
+               slot wins over an equally-distant slot further down, and break
+               left/right ties toward the right.                              */
+            const cost = (p: Pt): number =>
+                Math.abs(p.x - desiredX) + Math.abs(p.y - desiredY) * 1.2 +
+                (p.x < desiredX ? 0.01 : 0);
+            candidates.sort((a, b) => cost(a) - cost(b));
+            for (const c of candidates) {
+                if (!overlaps(c.x, c.y)) return c;
+            }
+        }
+        return { x: desiredX, y: desiredY };   // give up: nowhere clear found
+    }
+
+    _connectToExistingStage(sourceId: string, targetId: string): void {
+        const srcNode: WorkflowNode | undefined = this._nodes.find(n => n.id === sourceId);
+        if (!srcNode) return;
+
+        this._pushUndo();
+
+        const transId: string = nextId();
+        const transH: number = getNodeH({ nodeType: 'transition' } as WorkflowNode);
+        /* Place the transition in free space below the source — without nudging
+           the target or any other existing card.                              */
+        const pos: Pt = this._findFreePosition(
+            srcNode.x, srcNode.y + getNodeH(srcNode) + BASE_LAYER_GAP, NODE_W, transH
+        );
+        const transNode: WorkflowNode = {
+            id: transId,
+            nodeType: 'transition',
+            label: 'New Transition',
+            x: pos.x,
+            y: pos.y,
+        };
+
+        this._nodes = [...this._nodes, transNode];
+        this._links.push(
+            { id: 'l_t1_' + transId, source: sourceId, target: transId },
+            { id: 'l_t2_' + transId, source: transId, target: targetId, toExistingStage: true },
+        );
+        this._renderLinks();
+    }
+
     /* ===================== Node Operations ===================== */
 
     _addNodeBelow(parentNode: WorkflowNode): void {
-        this._pushUndo();
-        const nextType: 'stage' | 'transition' = parentNode.nodeType === 'stage' ? 'transition' : 'stage';
-        const newId: string = nextId();
+        if (parentNode.nodeType !== 'stage') return;
 
-        const newNode: WorkflowNode = {
-            id: newId,
-            nodeType: nextType,
-            label: nextType === 'stage' ? 'New Stage' : 'New Transition',
+        this._pushUndo();
+
+        /* New transition + stage start under the parent's centre; the pin-aware
+           auto-layout then fans this parent's children out symmetrically and
+           shifts neighbours to make room — while any node the user has dragged
+           (pinned) keeps its manual position.                                 */
+        const transId: string = nextId();
+        const transNode: WorkflowNode = {
+            id: transId,
+            nodeType: 'transition',
+            label: 'New Transition',
             x: parentNode.x,
             y: parentNode.y + getNodeH(parentNode) + BASE_LAYER_GAP,
         };
 
-        if (nextType === 'stage') {
-            newNode.lifecycleState = '';
-            newNode.customLabelApiName = '';
-            newNode.activities = [];
-            newNode.allowManualTransition = false;
-            newNode.isFinalStage = false;
-        }
+        const stageId: string = nextId();
+        const stageNode: WorkflowNode = {
+            id: stageId,
+            nodeType: 'stage',
+            label: 'New Stage',
+            lifecycleState: '',
+            customLabelApiName: '',
+            activities: [],
+            allowManualTransition: false,
+            isFinalStage: false,
+            x: parentNode.x,
+            y: transNode.y + getNodeH(transNode) + BASE_LAYER_GAP,
+        };
 
-        this._nodes.push(newNode);
-        this._links.push({ id: 'l' + newId, source: parentNode.id, target: newId });
+        this._nodes.push(transNode, stageNode);
+        this._links.push(
+            { id: 'l' + transId, source: parentNode.id, target: transId },
+            { id: 'l' + stageId, source: transId, target: stageId },
+        );
         this._autoLayout();
         this._nodes = [...this._nodes];
         this._renderLinks();
-        this._selectNode(newNode);
+        this._selectNode(stageNode);
     }
 
     _addNodeFromPalette(type: string, dropX: number, dropY: number): void {
@@ -1596,7 +2240,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             case 'zoomIn':       this._zoomBy(1.3); break;
             case 'zoomOut':      this._zoomBy(0.7); break;
             case 'fitToScreen':  this._fitToScreen(true); break;
-            case 'autoLayout':   this._pushUndo(); this._autoLayout(); this._nodes = [...this._nodes]; this._renderLinks(); this._fitToScreen(true); break;
+            case 'autoLayout':   this._pushUndo(); this._nodes.forEach(n => { n.pinned = false; }); this._autoLayout(); this._nodes = [...this._nodes]; this._renderLinks(); this._fitToScreen(true); break;
             case 'runAnimation': this._runExecutionAnimation(); break;
             default: break;
         }

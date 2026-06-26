@@ -451,10 +451,11 @@
   fill: none;
 }
 
-.mas-link--loopback {
+/* Back-edge (cycle) and "connect to existing stage" connectors */
+.mas-link--special {
   stroke: #d29922;
   stroke-width: 2;
-  stroke-dasharray: 4 3;
+  stroke-dasharray: 6 4;
 }
 
 @keyframes pulse-flow {
@@ -472,6 +473,84 @@
 
 .mas-temp-link {
   pointer-events: none;
+}
+
+/* ===== Node Action Popover ===== */
+.popover-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+}
+
+.node-action-popover {
+  position: absolute;
+  z-index: 1000;
+  background: #ffffff;
+  border: 1px solid #e0e3e8;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  min-width: 228px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: #1a1a1a;
+  line-height: 1.4;
+  transition: background 0.12s;
+  box-sizing: border-box;
+}
+
+.popover-item:hover {
+  background: #f3f5f8;
+}
+
+.popover-item-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.popover-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 1px solid #e8eaed;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #5c5c5c;
+  margin-bottom: 4px;
+  box-sizing: border-box;
+  transition: background 0.12s;
+}
+
+.popover-back:hover {
+  background: #f3f5f8;
+}
+
+.popover-stage-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.popover-empty {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #8a8a8a;
+  text-align: center;
 }
 
 /* Minimap */

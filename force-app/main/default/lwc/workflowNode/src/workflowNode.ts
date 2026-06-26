@@ -216,4 +216,27 @@ export default class WorkflowNode extends LightningElement {
             composed: true,
         }));
     }
+
+    /* Mousedown on the card body starts a node-move drag. Presses on a button
+       (edit / collapse / delete) or the output port are left alone so those
+       controls keep working — the port stops propagation itself; buttons are
+       filtered here by walking up from the event target.                      */
+    handleCardMouseDown(event: MouseEvent): void {
+        if (event.button !== 0) return;                 // left button only
+        const target: Element | null = event.target as Element;
+        if (target && typeof target.closest === 'function' &&
+            target.closest('button, .node-output-port')) {
+            return;                                     // let the control handle it
+        }
+        event.preventDefault();                         // avoid text selection while dragging
+        this.dispatchEvent(new CustomEvent('nodedragstart', {
+            detail: {
+                nodeId: this.nodeData ? this.nodeData.id : null,
+                clientX: event.clientX,
+                clientY: event.clientY,
+            },
+            bubbles: true,
+            composed: true,
+        }));
+    }
 }

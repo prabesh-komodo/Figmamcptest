@@ -23,13 +23,17 @@
     -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", Roboto, sans-serif;
   display: flex;
   flex-direction: column;
-  cursor: default;
+  cursor: grab;
   user-select: none;
   -webkit-user-drag: none;
   position: relative;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+.node-card:active {
+  cursor: grabbing;
 }
 
 /* Type-specific border accents */
