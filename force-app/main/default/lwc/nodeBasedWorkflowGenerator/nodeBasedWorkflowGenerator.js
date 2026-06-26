@@ -88,12 +88,15 @@ const NODE_TYPE_LABELS = {
  * ==========================================================================*/
 
 const ROUTE_DEFAULTS = {
-  padding: 26,
+  padding: 32,
   paddingPenalty: 6,
   bendPenalty: 40,
   portStub: 30,
   margin: 80,
-  maxGridCells: 9000
+  /* High enough that A* still runs on realistic graphs (~75 nodes). Past this
+       the router returns null and the caller falls back to the hand-rolled
+       routes — which is why this is generous: the fallback is a last resort. */
+  maxGridCells: 30000
 };
 
 const DIR_DELTA = {
@@ -1215,37 +1218,33 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     ];
   }
 
-  /* Back-edge arc: travels to a clear channel on the requested side,
-       then up/down to the target's port. Supports left and right channels.   */
-  _loopbackPolyline(exit, entry, _boxes, _excludeIds, side = "right", tgtBox) {
-    /* Horizontal crossing band: the inter-row gap just below the target node.
-           CHANNEL_MARGIN (48 px) for side stubs keeps the connector clearly
-           separated from node card edges — well within the 60 px sibling gap.    */
-    const armY = tgtBox
-      ? tgtBox.y + tgtBox.h + CHANNEL_MARGIN + MIN_STUB
-      : (exit.y + entry.y) / 2;
+  /* Back-edge arc (fallback when A* can't run): wrap around the OUTSIDE of the
+       whole obstacle field on the requested side rather than hugging a fixed
+       channel next to the source. We scan every node overlapping the vertical
+       span the loop must travel and push the channel past the extreme edge, so
+       the connector routes through open space instead of cutting between cards. */
+  _loopbackPolyline(exit, entry, boxes, excludeIds, side = "right") {
+    const yLo = Math.min(exit.y, entry.y);
+    const yHi = Math.max(exit.y, entry.y);
 
-    if (side === "left") {
-      const stubExit = exit.x - CHANNEL_MARGIN;
-      const stubEntry = entry.x - CHANNEL_MARGIN;
-      return [
-        { x: exit.x, y: exit.y },
-        { x: stubExit, y: exit.y },
-        { x: stubExit, y: armY },
-        { x: stubEntry, y: armY },
-        { x: stubEntry, y: entry.y },
-        { x: entry.x, y: entry.y }
-      ];
-    }
+    /* Find the furthest obstacle edge on this side within the y-span. */
+    let extreme =
+      side === "left" ? Math.min(exit.x, entry.x) : Math.max(exit.x, entry.x);
+    boxes.forEach((b) => {
+      if (excludeIds.has(b.id)) return;
+      if (b.y + b.h < yLo || b.y > yHi) return; // outside the travelled span
+      extreme =
+        side === "left" ? Math.min(extreme, b.x) : Math.max(extreme, b.x + b.w);
+    });
 
-    const stubExit = exit.x + CHANNEL_MARGIN;
-    const stubEntry = entry.x + CHANNEL_MARGIN;
+    const channel =
+      side === "left" ? extreme - CHANNEL_MARGIN : extreme + CHANNEL_MARGIN;
+
+    /* exit → out to the channel → vertical run clear of the field → into entry. */
     return [
       { x: exit.x, y: exit.y },
-      { x: stubExit, y: exit.y },
-      { x: stubExit, y: armY },
-      { x: stubEntry, y: armY },
-      { x: stubEntry, y: entry.y },
+      { x: channel, y: exit.y },
+      { x: channel, y: entry.y },
       { x: entry.x, y: entry.y }
     ];
   }
@@ -1348,7 +1347,6 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const laneCount = portPos ? portPos.laneCount : 1;
 
     const excludeIds = new Set([src.id, tgt.id]);
-    const tgtBox = boxes.find((b) => b.id === tgt.id);
 
     let points;
     /* A cycle (back-edge) is any link whose target sits at/above its source
@@ -1398,8 +1396,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             lEntry,
             boxes,
             excludeIds,
-            "left",
-            tgtBox
+            "left"
           );
         } else {
           points = this._loopbackPolyline(
@@ -1407,8 +1404,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             entry,
             boxes,
             excludeIds,
-            classifiedSide,
-            tgtBox
+            classifiedSide
           );
         }
       } else {

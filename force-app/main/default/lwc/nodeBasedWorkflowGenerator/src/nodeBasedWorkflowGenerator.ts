@@ -172,12 +172,15 @@ interface RouteOpts {
 }
 
 const ROUTE_DEFAULTS: RouteOpts = {
-    padding: 26,
+    padding: 32,
     paddingPenalty: 6,
     bendPenalty: 40,
     portStub: 30,
     margin: 80,
-    maxGridCells: 9000,
+    /* High enough that A* still runs on realistic graphs (~75 nodes). Past this
+       the router returns null and the caller falls back to the hand-rolled
+       routes — which is why this is generous: the fallback is a last resort. */
+    maxGridCells: 30000,
 };
 
 const DIR_DELTA: Record<RouteDir, Pt> = {
@@ -1178,42 +1181,40 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         return [{ x: x1, y: y1 }, { x: x1, y: mid }, { x: x2, y: mid }, { x: x2, y: y2 }];
     }
 
-    /* Back-edge arc: travels to a clear channel on the requested side,
-       then up/down to the target's port. Supports left and right channels.   */
+    /* Back-edge arc (fallback when A* can't run): wrap around the OUTSIDE of the
+       whole obstacle field on the requested side rather than hugging a fixed
+       channel next to the source. We scan every node overlapping the vertical
+       span the loop must travel and push the channel past the extreme edge, so
+       the connector routes through open space instead of cutting between cards. */
     _loopbackPolyline(
-        exit: Pt, entry: Pt, _boxes: NodeBox[], _excludeIds: Set<string>,
-        side: 'left' | 'right' = 'right',
-        tgtBox?: NodeBox
+        exit: Pt, entry: Pt, boxes: NodeBox[], excludeIds: Set<string>,
+        side: 'left' | 'right' = 'right'
     ): Pt[] {
-        /* Horizontal crossing band: the inter-row gap just below the target node.
-           CHANNEL_MARGIN (48 px) for side stubs keeps the connector clearly
-           separated from node card edges — well within the 60 px sibling gap.    */
-        const armY: number = tgtBox
-            ? tgtBox.y + tgtBox.h + CHANNEL_MARGIN + MIN_STUB
-            : (exit.y + entry.y) / 2;
+        const yLo: number = Math.min(exit.y, entry.y);
+        const yHi: number = Math.max(exit.y, entry.y);
 
-        if (side === 'left') {
-            const stubExit: number  = exit.x  - CHANNEL_MARGIN;
-            const stubEntry: number = entry.x - CHANNEL_MARGIN;
-            return [
-                { x: exit.x,    y: exit.y  },
-                { x: stubExit,  y: exit.y  },
-                { x: stubExit,  y: armY    },
-                { x: stubEntry, y: armY    },
-                { x: stubEntry, y: entry.y },
-                { x: entry.x,   y: entry.y },
-            ];
-        }
+        /* Find the furthest obstacle edge on this side within the y-span. */
+        let extreme: number = side === 'left'
+            ? Math.min(exit.x, entry.x)
+            : Math.max(exit.x, entry.x);
+        boxes.forEach((b: NodeBox) => {
+            if (excludeIds.has(b.id)) return;
+            if (b.y + b.h < yLo || b.y > yHi) return;           // outside the travelled span
+            extreme = side === 'left'
+                ? Math.min(extreme, b.x)
+                : Math.max(extreme, b.x + b.w);
+        });
 
-        const stubExit: number  = exit.x  + CHANNEL_MARGIN;
-        const stubEntry: number = entry.x + CHANNEL_MARGIN;
+        const channel: number = side === 'left'
+            ? extreme - CHANNEL_MARGIN
+            : extreme + CHANNEL_MARGIN;
+
+        /* exit → out to the channel → vertical run clear of the field → into entry. */
         return [
-            { x: exit.x,    y: exit.y  },
-            { x: stubExit,  y: exit.y  },
-            { x: stubExit,  y: armY    },
-            { x: stubEntry, y: armY    },
-            { x: stubEntry, y: entry.y },
-            { x: entry.x,   y: entry.y },
+            { x: exit.x,  y: exit.y  },
+            { x: channel, y: exit.y  },
+            { x: channel, y: entry.y },
+            { x: entry.x, y: entry.y },
         ];
     }
 
@@ -1305,7 +1306,6 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         const laneCount: number = portPos ? portPos.laneCount : 1;
 
         const excludeIds: Set<string> = new Set([src.id, tgt.id]);
-        const tgtBox: NodeBox | undefined = boxes.find((b: NodeBox) => b.id === tgt.id);
 
         let points: Pt[];
         /* A cycle (back-edge) is any link whose target sits at/above its source
@@ -1331,9 +1331,9 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
                 if (Math.abs(srcCx - tgtCx) <= NODE_W / 3) {
                     const lExit: Pt  = { x: src.x, y: exit.y };
                     const lEntry: Pt = { x: tgt.x, y: entry.y };
-                    points = this._loopbackPolyline(lExit, lEntry, boxes, excludeIds, 'left', tgtBox);
+                    points = this._loopbackPolyline(lExit, lEntry, boxes, excludeIds, 'left');
                 } else {
-                    points = this._loopbackPolyline(exit, entry, boxes, excludeIds, classifiedSide, tgtBox);
+                    points = this._loopbackPolyline(exit, entry, boxes, excludeIds, classifiedSide);
                 }
             } else {
                 points = this._sidewaysPolyline(exit, exitSide, entry, entrySide, laneIndex, laneCount, boxes, excludeIds);
