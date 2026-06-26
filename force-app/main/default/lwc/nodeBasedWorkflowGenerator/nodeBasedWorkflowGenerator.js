@@ -20,6 +20,12 @@ const MIN_STUB = 28;
 const LANE_INSET = 14;
 const PORT_EDGE_MARGIN = 40;
 const SIDE_VERTICAL_OVERLAP = 24;
+/* Per-bend surcharge when comparing candidate back-edge routes — keeps the
+   chosen side from favouring a marginally shorter but zig-zaggy path. */
+const BACKEDGE_BEND_COST = 30;
+/* Channel separation between two cycle connectors that wrap the same side, so
+   their routed segments sit in distinct lanes instead of overlapping. */
+const BACKEDGE_LANE_GAP = 22;
 
 const NODE_H_MAP = {
   root: 340,
@@ -88,15 +94,15 @@ const NODE_TYPE_LABELS = {
  * ==========================================================================*/
 
 const ROUTE_DEFAULTS = {
-  padding: 32,
+  padding: 48,
   paddingPenalty: 6,
-  bendPenalty: 40,
+  bendPenalty: 60,
   portStub: 30,
   margin: 80,
   /* High enough that A* still runs on realistic graphs (~75 nodes). Past this
        the router returns null and the caller falls back to the hand-rolled
        routes — which is why this is generous: the fallback is a last resort. */
-  maxGridCells: 30000
+  maxGridCells: 300000
 };
 
 const DIR_DELTA = {
@@ -348,6 +354,8 @@ function routeOrthogonal(start, end, obstacles, options) {
   ]);
 }
 
+/* One end of a link as attached to a specific node edge — used to spread every
+   port (outgoing and incoming) sharing one physical edge in a single pass. */
 let _idCounter = 100;
 function nextId() {
   return "n" + ++_idCounter;
@@ -787,7 +795,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         - target clearly below  -> exit bottom, enter top   (standard tree)
         - target clearly above  -> exit nearest side, enter top (back-edge)
         - vertical overlap       -> exit/enter on facing sides (sideways)      */
-  _classifyLinkSides(src, tgt) {
+  _classifyLinkSides(src, tgt, boxes) {
     const srcH = getNodeH(src);
     const tgtH = getNodeH(tgt);
     const srcBottom = src.y + srcH;
@@ -801,18 +809,12 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       return { exitSide: "bottom", entrySide: "top" };
     }
     if (tgtBottom <= srcTop + MIN_STUB) {
-      /* Back-edge (target above source). Choose each end's side
-               independently from the other node's position:
-                - exit the source on the side facing the target
-                - enter the target on the side facing the source
-               Near-aligned columns (within NODE_W/3) can't face each other
-               cleanly, so wrap around the left as a same-side loopback.        */
-      if (Math.abs(srcCx - tgtCx) <= NODE_W / 3) {
-        return { exitSide: "left", entrySide: "left" };
-      }
-      return tgtCx < srcCx
-        ? { exitSide: "left", entrySide: "right" } // target sits to the left
-        : { exitSide: "right", entrySide: "left" }; // target sits to the right
+      /* Back-edge (target above source). The exit/entry sides drive both
+               the connection points and how A* later routes the wire, so pick
+               them by actually routing each candidate side-pair and keeping the
+               cheapest. This stops the wire from leaving the "wrong" side and
+               wrapping down underneath the source node.                        */
+      return this._chooseBackEdgeSides(src, tgt, boxes);
     }
     /* Vertical overlap -> attach on the facing sides */
     if (tgtCx >= srcCx) {
@@ -821,7 +823,76 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     return { exitSide: "left", entrySide: "right" };
   }
 
-  _computeLinkPorts() {
+  /* Outward port point at the midpoint of a node's given edge — a stand-in
+       for the exact (post-spread) port, good enough to compare route costs. */
+  _portPointForSide(node, side) {
+    const h = getNodeH(node);
+    switch (side) {
+      case "right":
+        return { x: node.x + NODE_W, y: node.y + h / 2 };
+      case "left":
+        return { x: node.x, y: node.y + h / 2 };
+      case "top":
+        return { x: node.x + NODE_W / 2, y: node.y };
+      default:
+        return { x: node.x + NODE_W / 2, y: node.y + h };
+    }
+  }
+
+  /* Pick the back-edge exit/entry sides whose A* route is cheapest (shortest
+       path, lightly penalising bends). Falls back to the geometric heuristic if
+       A* can't find a path for any candidate (dense grid / null result).       */
+  _chooseBackEdgeSides(src, tgt, boxes) {
+    const excludeIds = new Set([src.id, tgt.id]);
+    const candidates = [
+      { exitSide: "right", entrySide: "left" },
+      { exitSide: "left", entrySide: "right" },
+      { exitSide: "right", entrySide: "right" },
+      { exitSide: "left", entrySide: "left" }
+    ];
+
+    let best = null;
+    let bestCost = Infinity;
+    candidates.forEach((c) => {
+      const exitPt = this._portPointForSide(src, c.exitSide);
+      const entryPt = this._portPointForSide(tgt, c.entrySide);
+      const route = this._routeAStar(
+        exitPt,
+        c.exitSide,
+        entryPt,
+        c.entrySide,
+        boxes,
+        excludeIds
+      );
+      if (!route || route.length < 2) return;
+      let length = 0;
+      for (let i = 0; i < route.length - 1; i++) {
+        length +=
+          Math.abs(route[i + 1].x - route[i].x) +
+          Math.abs(route[i + 1].y - route[i].y);
+      }
+      const bends = Math.max(0, route.length - 2);
+      const cost = length + bends * BACKEDGE_BEND_COST;
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = c;
+      }
+    });
+
+    if (best) return best;
+
+    /* A* found nothing routable — fall back to the geometric heuristic. */
+    const srcCx = src.x + NODE_W / 2;
+    const tgtCx = tgt.x + NODE_W / 2;
+    if (Math.abs(srcCx - tgtCx) <= NODE_W / 3) {
+      return { exitSide: "left", entrySide: "left" };
+    }
+    return tgtCx < srcCx
+      ? { exitSide: "left", entrySide: "right" }
+      : { exitSide: "right", entrySide: "left" };
+  }
+
+  _computeLinkPorts(boxes) {
     const ports = new Map();
     const nodeMap = new Map(this._nodes.map((n) => [n.id, n]));
 
@@ -830,7 +901,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       const src = nodeMap.get(link.source);
       const tgt = nodeMap.get(link.target);
       if (!src || !tgt) return;
-      const sides = this._classifyLinkSides(src, tgt);
+      const sides = this._classifyLinkSides(src, tgt, boxes);
       classified.push({
         link,
         src,
@@ -844,57 +915,69 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         exitSide: sides.exitSide,
         entrySide: sides.entrySide,
         laneIndex: 0,
-        laneCount: 1
+        laneCount: 1,
+        routeOffset: 0
       });
     });
 
-    /* Group links by (node, side) so multiple connectors on the same edge
-           can be spread out with a comfortable gap instead of stacking.       */
-    const outGroups = new Map();
-    const inGroups = new Map();
+    /* Group BOTH ends by (node, side) so everything attached to one physical
+           edge — outgoing and incoming alike — is spread together. Keeping exits
+           and entries in the same group is what stops the "going" and "coming"
+           ends from landing on the exact same point when they share a side.    */
+    const edgeGroups = new Map();
+    const addMember = (node, side, m) => {
+      const key = node.id + "|" + side;
+      if (!edgeGroups.has(key)) edgeGroups.set(key, []);
+      edgeGroups.get(key).push(m);
+    };
     classified.forEach((c) => {
-      const ok = c.link.source + "|" + c.exitSide;
-      const ik = c.link.target + "|" + c.entrySide;
-      if (!outGroups.has(ok)) outGroups.set(ok, []);
-      outGroups.get(ok).push(c);
-      if (!inGroups.has(ik)) inGroups.set(ik, []);
-      inGroups.get(ik).push(c);
+      addMember(c.src, c.exitSide, {
+        link: c.link,
+        role: "exit",
+        node: c.src,
+        other: c.tgt,
+        side: c.exitSide
+      });
+      addMember(c.tgt, c.entrySide, {
+        link: c.link,
+        role: "entry",
+        node: c.tgt,
+        other: c.src,
+        side: c.entrySide
+      });
     });
 
-    outGroups.forEach((group) =>
-      this._spreadEdgePorts(group, "exit", nodeMap, ports)
-    );
-    inGroups.forEach((group) =>
-      this._spreadEdgePorts(group, "entry", nodeMap, ports)
-    );
+    edgeGroups.forEach((group) => this._spreadEdgePorts(group, ports));
 
     this._assignLanes(classified, ports);
+    this._assignBackEdgeLanes(classified, ports);
 
     return ports;
   }
 
-  /* Distribute a set of connectors evenly along one edge of a node. */
-  _spreadEdgePorts(group, which, nodeMap, ports) {
+  /* Distribute everything attached to one physical edge (a node + side) evenly
+       along it, regardless of whether each member is an outgoing or incoming
+       end — so the two never overlap and same-side siblings stay separated.    */
+  _spreadEdgePorts(group, ports) {
     const first = group[0];
-    const node = which === "exit" ? first.src : first.tgt;
-    const side = which === "exit" ? first.exitSide : first.entrySide;
+    const node = first.node;
+    const side = first.side;
     const h = getNodeH(node);
     const horizontalEdge = side === "top" || side === "bottom";
 
-    /* Sort connectors by where the OTHER endpoint sits, so lines don't cross */
-    const otherCoord = (c) => {
-      const other = which === "exit" ? c.tgt : c.src;
+    /* Sort by where the OTHER endpoint sits, so lines don't cross */
+    const otherCoord = (m) => {
       return horizontalEdge
-        ? other.x + NODE_W / 2
-        : other.y + getNodeH(other) / 2;
+        ? m.other.x + NODE_W / 2
+        : m.other.y + getNodeH(m.other) / 2;
     };
     const sorted = [...group].sort((a, b) => otherCoord(a) - otherCoord(b));
     const n = sorted.length;
 
-    const setPort = (linkId, pt) => {
-      const p = ports.get(linkId);
+    const setPort = (m, pt) => {
+      const p = ports.get(m.link.id);
       if (!p) return;
-      if (which === "exit") p.exit = pt;
+      if (m.role === "exit") p.exit = pt;
       else p.entry = pt;
     };
 
@@ -902,19 +985,19 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       const y = side === "bottom" ? node.y + h : node.y;
       const lo = node.x + PORT_EDGE_MARGIN;
       const hi = node.x + NODE_W - PORT_EDGE_MARGIN;
-      sorted.forEach((c, i) => {
+      sorted.forEach((m, i) => {
         const x =
           n === 1 ? node.x + NODE_W / 2 : lo + (hi - lo) * (i / (n - 1));
-        setPort(c.link.id, { x, y });
+        setPort(m, { x, y });
       });
     } else {
       const x = side === "right" ? node.x + NODE_W : node.x;
       const lo = node.y + SIDE_VERTICAL_OVERLAP;
       const hi = node.y + h - SIDE_VERTICAL_OVERLAP;
-      sorted.forEach((c, i) => {
+      sorted.forEach((m, i) => {
         const y =
           n === 1 || hi <= lo ? node.y + h / 2 : lo + (hi - lo) * (i / (n - 1));
-        setPort(c.link.id, { x, y });
+        setPort(m, { x, y });
       });
     }
   }
@@ -960,6 +1043,39 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             p.laneCount = n;
           }
         });
+      });
+    });
+  }
+
+  /* Give each side-routed (back-edge / loopback) connector its own channel
+       offset so two cycles wrapping the same side don't collapse onto the same
+       routed segments. Connectors are grouped by the corridor they travel —
+       the side they leave on — and offsets are centred around zero so the fan
+       stays balanced. Forward (bottom→top) edges are untouched.                */
+  _assignBackEdgeLanes(classified, ports) {
+    const corridors = new Map();
+    classified.forEach((c) => {
+      if (c.exitSide === "bottom" && c.entrySide === "top") return; // forward edge
+      const key = c.exitSide; // 'left' | 'right' corridor
+      if (!corridors.has(key)) corridors.set(key, []);
+      corridors.get(key).push({ link: c.link, src: c.src, tgt: c.tgt });
+    });
+
+    corridors.forEach((group) => {
+      if (group.length < 2) return;
+      /* Order by vertical reach so nested cycles nest cleanly: the one
+               spanning the largest gap takes the outermost lane.              */
+      group.sort((a, b) => {
+        const spanA = Math.abs(a.src.y - a.tgt.y);
+        const spanB = Math.abs(b.src.y - b.tgt.y);
+        return spanA - spanB;
+      });
+      group.forEach((item, i) => {
+        const p = ports.get(item.link.id);
+        if (!p) return;
+        /* Larger-span cycles sit further out (bigger offset), so nested
+                   loops wrap around each other rather than crossing.           */
+        p.routeOffset = i * BACKEDGE_LANE_GAP;
       });
     });
   }
@@ -1223,7 +1339,14 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
        channel next to the source. We scan every node overlapping the vertical
        span the loop must travel and push the channel past the extreme edge, so
        the connector routes through open space instead of cutting between cards. */
-  _loopbackPolyline(exit, entry, boxes, excludeIds, side = "right") {
+  _loopbackPolyline(
+    exit,
+    entry,
+    boxes,
+    excludeIds,
+    side = "right",
+    routeOffset = 0
+  ) {
     const yLo = Math.min(exit.y, entry.y);
     const yHi = Math.max(exit.y, entry.y);
 
@@ -1237,8 +1360,11 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         side === "left" ? Math.min(extreme, b.x) : Math.max(extreme, b.x + b.w);
     });
 
+    /* The lane offset widens the channel so stacked loopbacks don't merge. */
     const channel =
-      side === "left" ? extreme - CHANNEL_MARGIN : extreme + CHANNEL_MARGIN;
+      side === "left"
+        ? extreme - CHANNEL_MARGIN - routeOffset
+        : extreme + CHANNEL_MARGIN + routeOffset;
 
     /* exit → out to the channel → vertical run clear of the field → into entry. */
     return [
@@ -1315,7 +1441,15 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
        router. The source exits along its side's outward normal; the target is
        entered along its side's outward normal. Boxes for the two endpoints are
        excluded so the wire is allowed to touch its own nodes.                  */
-  _routeAStar(exit, exitSide, entry, entrySide, boxes, excludeIds) {
+  _routeAStar(
+    exit,
+    exitSide,
+    entry,
+    entrySide,
+    boxes,
+    excludeIds,
+    routeOffset = 0
+  ) {
     const SIDE_DIR = {
       top: "up",
       bottom: "down",
@@ -1326,10 +1460,17 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       .filter((b) => !excludeIds.has(b.id))
       .map((b) => ({ x: b.x, y: b.y, width: b.w, height: b.h }));
     try {
+      /* Pushing the escape ring out by the lane offset puts each cycle's
+               wrap-around segment in its own channel instead of overlapping. */
+      const options =
+        routeOffset > 0
+          ? { margin: ROUTE_DEFAULTS.margin + routeOffset }
+          : undefined;
       return routeOrthogonal(
         { x: exit.x, y: exit.y, dir: SIDE_DIR[exitSide] },
         { x: entry.x, y: entry.y, dir: SIDE_DIR[entrySide] },
-        obstacles
+        obstacles,
+        options
       );
     } catch {
       return null;
@@ -1345,6 +1486,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const entrySide = portPos ? portPos.entrySide : "top";
     const laneIndex = portPos ? portPos.laneIndex : 0;
     const laneCount = portPos ? portPos.laneCount : 1;
+    const routeOffset = portPos ? portPos.routeOffset : 0;
 
     const excludeIds = new Set([src.id, tgt.id]);
 
@@ -1377,7 +1519,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         entry,
         entrySide,
         boxes,
-        excludeIds
+        excludeIds,
+        routeOffset
       );
       if (aStar && aStar.length >= 2) {
         points = aStar;
@@ -1396,7 +1539,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             lEntry,
             boxes,
             excludeIds,
-            "left"
+            "left",
+            routeOffset
           );
         } else {
           points = this._loopbackPolyline(
@@ -1404,7 +1548,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
             entry,
             boxes,
             excludeIds,
-            classifiedSide
+            classifiedSide,
+            routeOffset
           );
         }
       } else {
@@ -1761,8 +1906,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
     const self = this;
     const nodeMap = new Map(this._nodes.map((n) => [n.id, n]));
-    const linkPorts = this._computeLinkPorts();
     const boxes = this._buildNodeBoxes();
+    const linkPorts = this._computeLinkPorts(boxes);
     const backEdges = this._computeBackEdges();
 
     const geoms = [];
