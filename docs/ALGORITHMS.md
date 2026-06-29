@@ -73,7 +73,15 @@ needs to be, then center each parent over its children.
 **The one feature to remember — pinning:**
 Once a user _drags_ a card, it gets `pinned = true`. Auto-layout then leaves that
 card exactly where the user put it, but still fans its children out from that
-spot. The toolbar's "Auto Layout" button clears all pins to fully re-tidy.
+spot. The toolbar's "Auto Layout" button (`_autoLayoutAction`) clears all pins to
+fully re-tidy — **except nodes that take part in a cycle**.
+
+**Cycles survive Auto Layout:** before re-tidying, `_autoLayoutAction` runs cycle
+detection (§6) and **re-pins every node touched by a back-edge** (both
+endpoints). Those nodes keep their current position so a hand-arranged loop is
+never disturbed; everything else fans out around them. So dragging a node that's
+part of a cycle and then clicking Auto Layout leaves that node exactly where it
+was.
 
 ---
 
@@ -172,9 +180,18 @@ spread multiple wires so they don't pile onto the same point.
 ### 5a. Choosing the side (`_classifyLinkSides`)
 
 - Target clearly **below** source → exit bottom, enter top (normal tree edge).
-- Target **above** source → it's a back-edge; try all four side combinations,
-  actually route each with A\*, and keep the cheapest.
+- Target **above** source → it's a back-edge; hand off to `_chooseBackEdgeSides`,
+  which tries **candidate side-pairs spanning all four edges** (top, bottom, left,
+  right for both ends), actually routes each with A\*, and keeps the cheapest.
 - Cards **side by side** → connect on the facing sides.
+
+**Wires can attach to any side:** the candidate list in `_chooseBackEdgeSides`
+isn't limited to left/right wraps — it includes `top→bottom`, `top→left/right`,
+and `left/right→bottom`. So a cycle whose target sits above its source can leave
+the _top_ of the source and enter the _bottom_ of the target when that's the
+shortest clean path, instead of always wrapping around the sides. A\* scores
+every candidate and the cheapest route wins, so the source dot and target arrow
+each land on whichever edge reads best.
 
 ### 5b. Spreading ports on one edge (`_spreadEdgePorts`)
 
@@ -216,6 +233,11 @@ back-edge.
 dragging a card physically above its neighbor will _not_ make a normal edge look
 like a cycle.
 
+**Reused by Auto Layout:** the same back-edge set drives two other features — the
+amber/dashed styling of cycle wires, and (via `_autoLayoutAction`) protecting
+cycle nodes from being re-flowed: their endpoints are re-pinned before the tidy
+layout runs (see §3).
+
 ---
 
 ## 7. Line jumps (`_assignLineJumps`)
@@ -229,14 +251,51 @@ against every vertical segment of earlier wires and records where they cross;
 
 ## 8. Other algorithms (smaller, but worth knowing)
 
-| Feature                              | Function                           | Plain-English idea                                                                                                                                |
-| ------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Drop a new card without overlaps** | `_findFreePosition`                | Spiral outward from the desired spot, ring by ring, and drop into the nearest free slot. Existing cards never move.                               |
-| **Connect drag → nearest card**      | `_hitTestNode`, `_findClosestNode` | Simple distance / bounding-box checks.                                                                                                            |
-| **Undo / redo**                      | `_pushUndo`, `_undo`, `_redo`      | Deep-clone the whole `{nodes, links}` state onto two stacks (capped at 50).                                                                       |
-| **Fit to screen**                    | `_fitToScreen`                     | Measure the bounding box of all cards, compute the scale + offset that centers it.                                                                |
-| **Minimap**                          | `_updateMinimap`                   | Same graph drawn small, with a rectangle showing the current viewport.                                                                            |
-| **Execution animation**              | `_runExecutionAnimation`           | Breadth-first traversal from the roots produces a visit order; a timer then lights up each node and wire in sequence (cycle links replayed last). |
+| Feature                               | Function                                      | Plain-English idea                                                                                                                                                                                    |
+| ------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Drop a new card without overlaps**  | `_findFreePosition`                           | Spiral outward from the desired spot, ring by ring, and drop into the nearest free slot. Existing cards never move. Takes an optional `excludeIds` set so a node isn't counted as overlapping itself. |
+| **Nudge a freshly placed card clear** | `_resolveOverlaps`                            | After a new card is (auto-)placed, if it still overlaps another node it slides to the nearest free slot (via `_findFreePosition`) and is pinned. See the note below.                                  |
+| **Connect drag → nearest card**       | `_hitTestNode`, `_findClosestNode`            | Simple distance / bounding-box checks.                                                                                                                                                                |
+| **Add / delete a card (animated)**    | CSS `node-enter` / `node-exit`, `_deleteNode` | New cards fade + scale in on insert; deletes flag the card, play the exit animation, then remove it after `NODE_EXIT_MS`. See the note below.                                                         |
+| **Undo / redo**                       | `_pushUndo`, `_undo`, `_redo`                 | Deep-clone the whole `{nodes, links}` state onto two stacks (capped at 50).                                                                                                                           |
+| **Fit to screen**                     | `_fitToScreen`                                | Measure the bounding box of all cards, compute the scale + offset that centers it.                                                                                                                    |
+| **Minimap**                           | `_updateMinimap`                              | Same graph drawn small, with a rectangle showing the current viewport.                                                                                                                                |
+| **Execution animation**               | `_runExecutionAnimation`                      | Breadth-first traversal from the roots produces a visit order; a timer then lights up each node and wire in sequence (cycle links replayed last).                                                     |
+
+### 8a. Keeping new cards from overlapping (Issue: add-after-drag)
+
+Two add-paths feed `_findFreePosition`:
+
+- **Drag from the palette** (`_addNodeFromPalette`) routes the drop point through
+  `_findFreePosition` _before_ placing the card.
+- **The "+" / Create-New-Stage path** (`_addNodeBelow`) runs the normal tidy
+  layout, then calls `_resolveOverlaps([transition, stage])` to slide any new card
+  clear of a **pinned** (dragged) neighbour the layout couldn't move.
+
+The `excludeIds` argument is what lets a card ignore itself while testing —
+without it, a node already in `_nodes` would always report a self-collision.
+
+### 8b. Add / delete animations
+
+Cards animate in and out so edits don't feel abrupt. This is done in **CSS on the
+child `workflowNode` component**, kept deliberately separate from the D3 render
+loop:
+
+- **Enter** — `.node-card` always carries a `node-enter` keyframe (fade +
+  scale-up). Because LWC reuses DOM elements by their `key`, the animation only
+  fires when a card is _first inserted_ (a genuinely new node, or initial load) —
+  it never replays on re-render or during a drag.
+- **Exit** — deletion can't be instant or there'd be nothing to animate.
+  `_deleteNode` flags the doomed card(s) by adding their ids to the tracked
+  `_deletingNodeIds` set, which surfaces as `is-deleting` → the
+  `node-card--deleting` class → the `node-exit` keyframe (fade + scale-down). Only
+  after `NODE_EXIT_MS` (220 ms, matched to the CSS duration) does a deferred
+  callback actually drop the nodes/links from the model and re-run layout.
+
+> **Duration coupling:** `NODE_EXIT_MS` in the `.ts` and the `node-exit`
+> animation duration in `workflowNode.css` must stay in sync — if the CSS is
+> slower than the timer the card vanishes mid-animation; if it's faster the card
+> sits frozen before removal.
 
 ---
 
