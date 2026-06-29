@@ -24,6 +24,7 @@ export default class WorkflowNode extends LightningElement {
   @api isConnectTarget = false;
   @api isExecuting = false;
   @api isCollapsed = false;
+  @api isDeleting = false;
 
   get nodeType() {
     return this.nodeData ? this.nodeData.nodeType : "stage";
@@ -48,6 +49,7 @@ export default class WorkflowNode extends LightningElement {
     if (this.isConnectTarget) cls += " node-card--connect-target";
     if (this.isExecuting) cls += " node-card--executing";
     if (this.isCollapsed) cls += " node-card--collapsed";
+    if (this.isDeleting) cls += " node-card--deleting";
     return cls;
   }
 

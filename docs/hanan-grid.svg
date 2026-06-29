@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="560" height="380" fill="#ffffff"/>
+  <text x="280" y="28" text-anchor="middle" font-size="16" font-weight="700" fill="#1b2733">Hanan grid: only card edges &amp; ports become grid lines</text>
+
+  <!-- ===== Grid lines (the candidate turn coordinates) ===== -->
+  <g stroke="#d7e3f4" stroke-width="1" stroke-dasharray="4 4">
+    <!-- vertical lines: card A edges, card B edges, ports -->
+    <line x1="120" y1="60" x2="120" y2="350"/>
+    <line x1="240" y1="60" x2="240" y2="350"/>
+    <line x1="360" y1="60" x2="360" y2="350"/>
+    <line x1="480" y1="60" x2="480" y2="350"/>
+    <line x1="180" y1="60" x2="180" y2="350"/>
+    <line x1="420" y1="60" x2="420" y2="350"/>
+    <!-- horizontal lines: card A edges, card B edges -->
+    <line x1="90" y1="90"  x2="510" y2="90"/>
+    <line x1="90" y1="150" x2="510" y2="150"/>
+    <line x1="90" y1="230" x2="510" y2="230"/>
+    <line x1="90" y1="290" x2="510" y2="290"/>
+  </g>
+
+  <!-- grid intersection dots -->
+  <g fill="#bcd0ec">
+    <circle cx="120" cy="90" r="2.5"/><circle cx="240" cy="90" r="2.5"/><circle cx="360" cy="90" r="2.5"/><circle cx="480" cy="90" r="2.5"/>
+    <circle cx="120" cy="150" r="2.5"/><circle cx="240" cy="150" r="2.5"/><circle cx="360" cy="150" r="2.5"/><circle cx="480" cy="150" r="2.5"/>
+    <circle cx="120" cy="230" r="2.5"/><circle cx="240" cy="230" r="2.5"/><circle cx="360" cy="230" r="2.5"/><circle cx="480" cy="230" r="2.5"/>
+    <circle cx="120" cy="290" r="2.5"/><circle cx="240" cy="290" r="2.5"/><circle cx="360" cy="290" r="2.5"/><circle cx="480" cy="290" r="2.5"/>
+    <circle cx="180" cy="150" r="2.5"/><circle cx="180" cy="230" r="2.5"/><circle cx="420" cy="150" r="2.5"/><circle cx="420" cy="230" r="2.5"/>
+  </g>
+
+  <!-- ===== Cards (obstacles) ===== -->
+  <g>
+    <rect x="120" y="90" width="120" height="60" rx="8" fill="#e8f0fe" stroke="#066afe" stroke-width="2"/>
+    <text x="180" y="125" text-anchor="middle" font-size="13" font-weight="600" fill="#066afe">Card A</text>
+
+    <rect x="360" y="230" width="120" height="60" rx="8" fill="#e8f0fe" stroke="#066afe" stroke-width="2"/>
+    <text x="420" y="265" text-anchor="middle" font-size="13" font-weight="600" fill="#066afe">Card B</text>
+  </g>
+
+  <!-- ===== Routed wire (A* result, snaps to grid lines) ===== -->
+  <path d="M180,150 L180,190 L420,190 L420,230"
+        fill="none" stroke="#4bca81" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- source dot + target arrow -->
+  <circle cx="180" cy="150" r="4" fill="#4bca81"/>
+  <path d="M414,222 L420,230 L426,222 Z" fill="#4bca81"/>
+
+  <!-- ===== Legend ===== -->
+  <g font-size="12" fill="#5a6b7b">
+    <line x1="40" y1="350" x2="70" y2="350" stroke="#d7e3f4" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="76" y="354">grid line (card edge / port)</text>
+    <line x1="300" y1="350" x2="330" y2="350" stroke="#4bca81" stroke-width="3"/>
+    <text x="336" y="354">routed wire (turns only on grid lines)</text>
+  </g>
+</svg>

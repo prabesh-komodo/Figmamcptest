@@ -356,6 +356,10 @@ function routeOrthogonal(start, end, obstacles, options) {
 
 /* One end of a link as attached to a specific node edge — used to spread every
    port (outgoing and incoming) sharing one physical edge in a single pass. */
+/* How long (ms) the exit animation runs before the node is actually removed —
+   must match the .node-card--deleting transition duration in workflowNode.css. */
+const NODE_EXIT_MS = 220;
+
 let _idCounter = 100;
 function nextId() {
   return "n" + ++_idCounter;
@@ -383,11 +387,20 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
   @track _popoverSourceId = null;
   @track _popoverX = 0;
   @track _popoverY = 0;
+  /* Ids currently playing their exit animation — still rendered (so the
+       animation is visible) but on their way out.                              */
+  @track _deletingNodeIds = new Set();
 
   _undoStack = [];
   _redoStack = [];
   _animationRunning = false;
   _draggedPaletteType = null;
+  /* Per-render memo for A* routes, keyed by every input routeOrthogonal
+       depends on. Back-edge side selection routes 4 candidate side-pairs and the
+       geometry pass routes the winner again; when the winner's ports weren't
+       spread (the common single-port case) that final call is identical and is
+       served from here instead of re-running A*. Reset each _renderLinks().     */
+  _routeCache = null;
 
   /* ===================== Getters for Template ===================== */
 
@@ -418,6 +431,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       isConnectTarget: this._connectTargetId === n.id,
       isExecuting: this._executingNodeIds.has(n.id),
       isCollapsed: !!n.isCollapsed,
+      isDeleting: this._deletingNodeIds.has(n.id),
       positionStyle: `left:${n.x}px;top:${n.y}px;height:${getNodeH(n)}px`
     }));
   }
@@ -844,9 +858,18 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
        A* can't find a path for any candidate (dense grid / null result).       */
   _chooseBackEdgeSides(src, tgt, boxes) {
     const excludeIds = new Set([src.id, tgt.id]);
+    /* Allow the wire to leave/enter on ANY side — the cheapest A* route wins.
+           Including top/bottom (not just left/right) lets a cycle attach to the
+           top of the source and the bottom of the target when that's the cleanest
+           path, instead of always wrapping around the sides.                     */
     const candidates = [
+      { exitSide: "top", entrySide: "bottom" },
+      { exitSide: "top", entrySide: "left" },
+      { exitSide: "top", entrySide: "right" },
       { exitSide: "right", entrySide: "left" },
       { exitSide: "left", entrySide: "right" },
+      { exitSide: "right", entrySide: "bottom" },
+      { exitSide: "left", entrySide: "bottom" },
       { exitSide: "right", entrySide: "right" },
       { exitSide: "left", entrySide: "left" }
     ];
@@ -1456,9 +1479,43 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       left: "left",
       right: "right"
     };
+
+    /* Serve identical routes from this render's memo. The key captures every
+           input routeOrthogonal depends on (endpoints, sides, lane offset, and
+           which nodes are excluded from the obstacle set). Any difference — e.g.
+           a spread port or a non-zero offset on the final geometry pass — yields
+           a different key and recomputes, so the output is always identical to
+           the un-cached path; only genuinely repeated work is skipped.          */
+    const cache = this._routeCache;
+    let key = null;
+    if (cache) {
+      const exArr = [];
+      excludeIds.forEach((id) => exArr.push(id));
+      const ex = exArr.sort().join(",");
+      key =
+        exit.x +
+        "," +
+        exit.y +
+        "," +
+        exitSide +
+        "|" +
+        entry.x +
+        "," +
+        entry.y +
+        "," +
+        entrySide +
+        "|" +
+        routeOffset +
+        "|" +
+        ex;
+      const hit = cache.get(key);
+      if (hit !== undefined) return hit;
+    }
+
     const obstacles = boxes
       .filter((b) => !excludeIds.has(b.id))
       .map((b) => ({ x: b.x, y: b.y, width: b.w, height: b.h }));
+    let result;
     try {
       /* Pushing the escape ring out by the lane offset puts each cycle's
                wrap-around segment in its own channel instead of overlapping. */
@@ -1466,15 +1523,17 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         routeOffset > 0
           ? { margin: ROUTE_DEFAULTS.margin + routeOffset }
           : undefined;
-      return routeOrthogonal(
+      result = routeOrthogonal(
         { x: exit.x, y: exit.y, dir: SIDE_DIR[exitSide] },
         { x: entry.x, y: entry.y, dir: SIDE_DIR[entrySide] },
         obstacles,
         options
       );
     } catch {
-      return null;
+      result = null;
     }
+    if (cache && key !== null) cache.set(key, result);
+    return result;
   }
 
   _computeLinkGeometry(src, tgt, portPos, boxes) {
@@ -1904,6 +1963,10 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const d3 = this._d3;
     if (!this._zoomGroup) return;
 
+    /* Fresh A* memo for this render — node boxes change between renders, so
+           the cache must never outlive a single _renderLinks() pass.            */
+    this._routeCache = new Map();
+
     const self = this;
     const nodeMap = new Map(this._nodes.map((n) => [n.id, n]));
     const boxes = this._buildNodeBoxes();
@@ -1993,6 +2056,10 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     });
 
     this._updateMinimap();
+
+    /* Drop the memo so its cached routes (and the boxes they assume) can't
+           be reused by a later, stale call outside this render.                 */
+    this._routeCache = null;
   }
 
   /* ===================== Node Selection ===================== */
@@ -2117,35 +2184,43 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
     this._pushUndo();
 
+    /* Collect every id that will go away. Deleting a stage also removes the
+           transition blocks attached to it.                                    */
+    const removeIds = new Set([nodeId]);
     if (node.nodeType === "stage") {
-      const attachedTransitionIds = [];
       this._links.forEach((l) => {
         const otherId =
           l.source === nodeId ? l.target : l.target === nodeId ? l.source : "";
         if (!otherId) return;
         const other = this._nodes.find((n) => n.id === otherId);
         if (other && other.nodeType === "transition") {
-          attachedTransitionIds.push(other.id);
+          removeIds.add(other.id);
         }
       });
-      const removeIds = new Set([nodeId, ...attachedTransitionIds]);
+    }
+
+    if (this.selectedNode && removeIds.has(this.selectedNode.id)) {
+      this.selectedNode = null;
+    }
+
+    /* Play the exit animation first: flag the cards as deleting, then remove
+           them from the model once the animation has run.                       */
+    const deleting = new Set(this._deletingNodeIds);
+    removeIds.forEach((id) => deleting.add(id));
+    this._deletingNodeIds = deleting;
+
+    // eslint-disable-next-line @lwc/lwc/no-async-operation -- defer removal until exit animation completes
+    setTimeout(() => {
       this._links = this._links.filter(
         (l) => !removeIds.has(l.source) && !removeIds.has(l.target)
       );
       this._nodes = this._nodes.filter((n) => !removeIds.has(n.id));
-    } else {
-      /* Transition deleted: remove it and all its connections — no bridging. */
-      this._links = this._links.filter(
-        (l) => l.source !== nodeId && l.target !== nodeId
-      );
-      this._nodes = this._nodes.filter((n) => n.id !== nodeId);
-    }
-
-    if (this.selectedNode && this.selectedNode.id === nodeId) {
-      this.selectedNode = null;
-    }
-    this._autoLayout();
-    this._renderLinks();
+      const remaining = new Set(this._deletingNodeIds);
+      removeIds.forEach((id) => remaining.delete(id));
+      this._deletingNodeIds = remaining;
+      this._autoLayout();
+      this._renderLinks();
+    }, NODE_EXIT_MS);
   }
 
   /* ===================== Connection Dragging ===================== */
@@ -2357,10 +2432,11 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
        target especially — are never moved; we search outward from the desired
        spot and drop the new card into the closest free space, preferring a
        sideways slot in the same row before stepping down a row.               */
-  _findFreePosition(desiredX, desiredY, w, h) {
+  _findFreePosition(desiredX, desiredY, w, h, excludeIds) {
     const PAD = 32;
     const overlaps = (x, y) =>
       this._nodes.some((n) => {
+        if (excludeIds && excludeIds.has(n.id)) return false;
         const nw = NODE_W,
           nh = getNodeH(n);
         return (
@@ -2400,6 +2476,30 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       }
     }
     return { x: desiredX, y: desiredY }; // give up: nowhere clear found
+  }
+
+  /* After a node is (auto-)placed it can still land on top of a node the user
+       had previously dragged into that spot. For each id, if the node now
+       overlaps any OTHER node, slide it to the nearest free position and pin it
+       so a later layout doesn't shove it back into the collision.              */
+  _resolveOverlaps(ids) {
+    ids.forEach((id) => {
+      const node = this._nodes.find((n) => n.id === id);
+      if (!node) return;
+      const h = getNodeH(node);
+      const pos = this._findFreePosition(
+        node.x,
+        node.y,
+        NODE_W,
+        h,
+        new Set([id])
+      );
+      if (Math.abs(pos.x - node.x) > 0.5 || Math.abs(pos.y - node.y) > 0.5) {
+        node.x = pos.x;
+        node.y = pos.y;
+        node.pinned = true;
+      }
+    });
   }
 
   _connectToExistingStage(sourceId, targetId) {
@@ -2479,6 +2579,9 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       { id: "l" + stageId, source: transId, target: stageId }
     );
     this._autoLayout();
+    /* Auto-layout respects pinned (dragged) nodes, so the freshly placed
+           transition/stage can still land on one. Nudge them clear if so.      */
+    this._resolveOverlaps([transId, stageId]);
     this._nodes = [...this._nodes];
     this._renderLinks();
     this._selectNode(stageNode);
@@ -2492,12 +2595,22 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const canvasY = (dropY - t.y) / t.k;
     const nodeType = type;
 
+    /* Drop where the cursor released, but slide to the nearest clear spot so
+           the new card never lands on top of an existing one.                   */
+    const dropH = getNodeH({ nodeType: nodeType });
+    const pos = this._findFreePosition(
+      canvasX - NODE_W / 2,
+      canvasY - dropH / 2,
+      NODE_W,
+      dropH
+    );
+
     const newNode = {
       id: newId,
       nodeType: nodeType,
       label: NODE_TYPE_LABELS[type] || "New Step",
-      x: canvasX - NODE_W / 2,
-      y: canvasY - getNodeH({ nodeType: nodeType }) / 2
+      x: pos.x,
+      y: pos.y
     };
 
     if (nodeType === "stage") {
@@ -2588,14 +2701,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         this._fitToScreen(true);
         break;
       case "autoLayout":
-        this._pushUndo();
-        this._nodes.forEach((n) => {
-          n.pinned = false;
-        });
-        this._autoLayout();
-        this._nodes = [...this._nodes];
-        this._renderLinks();
-        this._fitToScreen(true);
+        this._autoLayoutAction();
         break;
       case "runAnimation":
         this._runExecutionAnimation();
@@ -2603,6 +2709,35 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       default:
         break;
     }
+  }
+
+  /* Auto-layout triggered from the toolbar. Every node is re-flowed into the
+       tree EXCEPT those that take part in a cycle (back-edge): those keep their
+       existing position so a manually-arranged loop is never disturbed. We pin
+       the cycle nodes (at their current x/y) before re-flowing so the layout
+       fans the rest of the graph around them.                                  */
+  _autoLayoutAction() {
+    this._pushUndo();
+
+    const backEdges = this._computeBackEdges();
+    const cycleNodeIds = new Set();
+    this._links.forEach((l) => {
+      if (backEdges.has(l.id)) {
+        cycleNodeIds.add(l.source);
+        cycleNodeIds.add(l.target);
+      }
+    });
+
+    this._nodes.forEach((n) => {
+      /* Pin = keep current position. Cycle nodes stay put; everything else
+               is freed so the tree layout can reposition it.                    */
+      n.pinned = cycleNodeIds.has(n.id);
+    });
+
+    this._autoLayout();
+    this._nodes = [...this._nodes];
+    this._renderLinks();
+    this._fitToScreen(true);
   }
 
   _zoomBy(factor) {

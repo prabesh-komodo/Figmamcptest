@@ -1,0 +1,2088 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Node-Based Workflow Generator — Algorithm Report</title>
+    <style>
+      :root {
+        --bg: #f7f9fc;
+        --card: #ffffff;
+        --ink: #1b2733;
+        --muted: #5a6b7b;
+        --line: #e3e9f0;
+        --blue: #066afe;
+        --blue-soft: #eef4ff;
+        --green: #2f9e57;
+        --green-soft: #e8f7ee;
+        --amber: #b4791b;
+        --amber-soft: #fff5e6;
+        --code-bg: #0f1b2d;
+        --code-ink: #d6e2f5;
+        --radius: 14px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        line-height: 1.65;
+        font-size: 16px;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 40px;
+      }
+      @media (max-width: 900px) {
+        .wrap {
+          grid-template-columns: 1fr;
+          gap: 0;
+        }
+        nav.toc {
+          display: none;
+        }
+      }
+
+      header.hero {
+        background: linear-gradient(135deg, #066afe, #0a4bd0);
+        color: #fff;
+        padding: 48px 0 40px;
+        margin-bottom: 36px;
+      }
+      header.hero .wrap {
+        display: block;
+      }
+      header.hero h1 {
+        margin: 0 0 8px;
+        font-size: 30px;
+        letter-spacing: -0.02em;
+      }
+      header.hero p {
+        margin: 0;
+        opacity: 0.92;
+        font-size: 16px;
+        max-width: 760px;
+      }
+      .pill {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        padding: 3px 11px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        margin-top: 16px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+      }
+
+      nav.toc {
+        position: sticky;
+        top: 24px;
+        align-self: start;
+        font-size: 14px;
+      }
+      nav.toc h4 {
+        margin: 0 0 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      nav.toc a {
+        display: block;
+        color: var(--muted);
+        text-decoration: none;
+        padding: 5px 10px;
+        border-radius: 8px;
+        border-left: 2px solid transparent;
+      }
+      nav.toc a:hover {
+        color: var(--blue);
+        background: var(--blue-soft);
+        border-left-color: var(--blue);
+      }
+
+      main {
+        min-width: 0;
+        padding-bottom: 80px;
+      }
+      section {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 28px 32px;
+        margin-bottom: 24px;
+        scroll-margin-top: 20px;
+      }
+      section > h2 {
+        margin: 0 0 4px;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+      }
+      section > h2 .num {
+        color: var(--blue);
+        font-variant-numeric: tabular-nums;
+        margin-right: 8px;
+      }
+      .lead {
+        color: var(--muted);
+        margin: 0.2em 0 1.2em;
+      }
+      h3 {
+        margin: 1.6em 0 0.5em;
+        font-size: 16.5px;
+      }
+      p {
+        margin: 0.7em 0;
+      }
+      ul,
+      ol {
+        margin: 0.6em 0 0.9em;
+        padding-left: 1.3em;
+      }
+      li {
+        margin: 0.32em 0;
+      }
+      code {
+        font-family:
+          ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 0.88em;
+        background: #eef2f7;
+        padding: 1.5px 6px;
+        border-radius: 5px;
+        color: #10243f;
+      }
+
+      figure {
+        margin: 22px 0;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+      }
+      figure svg {
+        max-width: 100%;
+        height: auto;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 10px;
+      }
+
+      .callout {
+        border-left: 4px solid var(--blue);
+        background: var(--blue-soft);
+        padding: 12px 16px;
+        border-radius: 0 10px 10px 0;
+        margin: 16px 0;
+      }
+      .callout.warn {
+        border-color: var(--amber);
+        background: var(--amber-soft);
+      }
+      .callout.key {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+      .callout b {
+        color: var(--ink);
+      }
+
+      .math {
+        background: var(--code-bg);
+        color: var(--code-ink);
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin: 16px 0;
+        overflow-x: auto;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 14px;
+        line-height: 1.9;
+      }
+      .math .lbl {
+        color: #7fb2ff;
+        user-select: none;
+        display: inline-block;
+        min-width: 0;
+      }
+      .math .cmt {
+        color: #6b8299;
+      }
+      .math hr {
+        border: none;
+        border-top: 1px solid #24364f;
+        margin: 12px 0;
+      }
+      .var {
+        color: #ffd479;
+      }
+      .math sub {
+        font-size: 0.8em;
+      }
+
+      figure.code {
+        display: block;
+        text-align: left;
+        padding: 0;
+        overflow: hidden;
+      }
+      .codecap {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: #152334;
+        color: #9fb4cd;
+        font-size: 12px;
+        padding: 8px 14px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        border-bottom: 1px solid #24364f;
+      }
+      .codecap .fn {
+        color: #7fb2ff;
+        font-weight: 600;
+      }
+      .codecap .ln {
+        color: #6b8299;
+      }
+      pre.code {
+        margin: 0;
+        background: var(--code-bg);
+        color: var(--code-ink);
+        padding: 16px 18px;
+        overflow-x: auto;
+        font-family:
+          ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 13px;
+        line-height: 1.62;
+        tab-size: 2;
+      }
+      pre.code .c {
+        color: #6b8299;
+        font-style: italic;
+      }
+      pre.code .k {
+        color: #7fb2ff;
+      }
+      pre.code .s {
+        color: #9ece6a;
+      }
+      pre.code .n {
+        color: #ffd479;
+      }
+      .deriv {
+        border-left: 4px solid #8a5cf6;
+        background: #f3effe;
+        padding: 12px 16px;
+        border-radius: 0 10px 10px 0;
+        margin: 16px 0;
+      }
+      .deriv b {
+        color: #5b3fb0;
+      }
+      .cx {
+        display: inline-block;
+        background: #10243f;
+        color: #9fd0ff;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 2px 9px;
+        border-radius: 6px;
+        margin: 2px 6px 2px 0;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 16px 0;
+        font-size: 14.5px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 9px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f1f5fb;
+        font-weight: 600;
+      }
+      tr:nth-child(even) td {
+        background: #fafbfd;
+      }
+
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      .tag.astar {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+      .tag.core {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      footer {
+        color: var(--muted);
+        font-size: 13px;
+        text-align: center;
+        padding: 24px 0 60px;
+      }
+      a.src {
+        color: var(--blue);
+        text-decoration: none;
+      }
+      a.src:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <h1>Node-Based Workflow Generator — Algorithm Report</h1>
+        <p>
+          A reference for the layout and edge-routing engine behind the visual
+          workflow editor — plain-English explanations, annotated source
+          excerpts, derivations, and complexity analysis. Written for the next
+          developer who has to fix or extend it.
+        </p>
+        <span class="pill"
+          >source: src/nodeBasedWorkflowGenerator.ts · line refs
+          throughout</span
+        >
+      </div>
+    </header>
+
+    <div class="wrap">
+      <nav class="toc">
+        <h4>Contents</h4>
+        <a href="#overview">1 · Overview</a>
+        <a href="#pipeline">2 · The render pipeline</a>
+        <a href="#layout">3 · Auto-layout (tidy tree)</a>
+        <a href="#routing">4 · Edge routing (A*)</a>
+        <a href="#hanan">4a · Hanan grid</a>
+        <a href="#ports">5 · Ports &amp; lanes</a>
+        <a href="#cycles">6 · Cycle detection</a>
+        <a href="#jumps">7 · Line jumps</a>
+        <a href="#misc">8 · Smaller algorithms</a>
+        <a href="#math">9 · Math cheat-sheet</a>
+        <a href="#constants">10 · Constants &amp; tuning</a>
+      </nav>
+
+      <main>
+        <!-- 1 -->
+        <section id="overview">
+          <h2><span class="num">1</span>What this component is</h2>
+          <p class="lead">
+            A drag-and-drop workflow editor (a mini Figma / JointJS canvas)
+            rendered with D3.
+          </p>
+          <p>
+            A workflow is a graph of <b>cards</b> (nodes) joined by right-angle
+            <b>wires</b> (links). There are three node types:
+            <code>root</code> (the trigger), <code>stage</code>, and
+            <code>transition</code>.
+          </p>
+          <ul>
+            <li><b>Cards are HTML</b>, positioned with CSS.</li>
+            <li>
+              <b>Wires, grid, arrows and the minimap are SVG</b>, drawn by D3.
+            </li>
+            <li>
+              Both layers share one zoom/pan transform, so they stay perfectly
+              aligned.
+            </li>
+          </ul>
+          <p>Nearly every interaction runs the same loop:</p>
+          <div class="math">
+            <span class="cmt">// the core update cycle</span><br />change
+            <span class="var">_nodes</span> /
+            <span class="var">_links</span> &nbsp;→&nbsp;
+            <span class="var">_autoLayout()</span> &nbsp;→&nbsp;
+            <span class="var">_renderLinks()</span>
+          </div>
+          <p>
+            The genuinely hard engineering lives in two places:
+            <b>where cards go</b> (layout, §3) and
+            <b>how wires dodge them</b> (routing, §4). Everything else is
+            plumbing.
+          </p>
+        </section>
+
+        <!-- 2 -->
+        <section id="pipeline">
+          <h2><span class="num">2</span>The render pipeline</h2>
+          <p class="lead">
+            What <code>_renderLinks()</code> does, end to end, every frame.
+          </p>
+          <figure>
+            <!-- pipeline.svg inlined -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 880 360"
+              font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif"
+            >
+              <rect x="0" y="0" width="880" height="360" fill="#ffffff" />
+              <text
+                x="440"
+                y="30"
+                text-anchor="middle"
+                font-size="16"
+                font-weight="700"
+                fill="#1b2733"
+              >
+                How one frame is drawn
+              </text>
+              <defs>
+                <marker
+                  id="arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M1,2 L9,5 L1,8 Z" fill="#9aa7b4" />
+                </marker>
+              </defs>
+              <g>
+                <rect
+                  x="40"
+                  y="70"
+                  width="160"
+                  height="56"
+                  rx="10"
+                  fill="#eef4ff"
+                  stroke="#066afe"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="120"
+                  y="94"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  1. Auto-layout
+                </text>
+                <text
+                  x="120"
+                  y="112"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  place every card
+                </text>
+                <rect
+                  x="260"
+                  y="70"
+                  width="160"
+                  height="56"
+                  rx="10"
+                  fill="#eef4ff"
+                  stroke="#066afe"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="340"
+                  y="94"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  2. Node boxes
+                </text>
+                <text
+                  x="340"
+                  y="112"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  snapshot obstacles
+                </text>
+                <rect
+                  x="480"
+                  y="70"
+                  width="160"
+                  height="56"
+                  rx="10"
+                  fill="#eef4ff"
+                  stroke="#066afe"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="560"
+                  y="94"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  3. Link ports
+                </text>
+                <text
+                  x="560"
+                  y="112"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  sides + lanes
+                </text>
+                <rect
+                  x="700"
+                  y="70"
+                  width="160"
+                  height="56"
+                  rx="10"
+                  fill="#eef4ff"
+                  stroke="#066afe"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="780"
+                  y="94"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  4. Back-edges
+                </text>
+                <text
+                  x="780"
+                  y="112"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  find cycles (DFS)
+                </text>
+              </g>
+              <g stroke="#9aa7b4" stroke-width="1.5" marker-end="url(#arrow)">
+                <line x1="200" y1="98" x2="256" y2="98" />
+                <line x1="420" y1="98" x2="476" y2="98" />
+                <line x1="640" y1="98" x2="696" y2="98" />
+              </g>
+              <path
+                d="M780,126 L780,160 L120,160 L120,194"
+                fill="none"
+                stroke="#9aa7b4"
+                stroke-width="1.5"
+                marker-end="url(#arrow)"
+              />
+              <g>
+                <rect
+                  x="40"
+                  y="196"
+                  width="160"
+                  height="64"
+                  rx="10"
+                  fill="#fff5e6"
+                  stroke="#d29922"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="120"
+                  y="220"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  5. Route wires
+                </text>
+                <text
+                  x="120"
+                  y="238"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  A* on Hanan grid
+                </text>
+                <text
+                  x="120"
+                  y="252"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  (fallbacks if null)
+                </text>
+                <rect
+                  x="260"
+                  y="196"
+                  width="160"
+                  height="64"
+                  rx="10"
+                  fill="#eef4ff"
+                  stroke="#066afe"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="340"
+                  y="224"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  6. Line jumps
+                </text>
+                <text
+                  x="340"
+                  y="242"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  arcs at crossings
+                </text>
+                <rect
+                  x="480"
+                  y="196"
+                  width="160"
+                  height="64"
+                  rx="10"
+                  fill="#eef4ff"
+                  stroke="#066afe"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="560"
+                  y="224"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  7. Build path
+                </text>
+                <text
+                  x="560"
+                  y="242"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  corners → SVG "d"
+                </text>
+                <rect
+                  x="700"
+                  y="196"
+                  width="160"
+                  height="64"
+                  rx="10"
+                  fill="#e8f7ee"
+                  stroke="#4bca81"
+                  stroke-width="1.5"
+                />
+                <text
+                  x="780"
+                  y="224"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="700"
+                  fill="#1b2733"
+                >
+                  8. D3 renders
+                </text>
+                <text
+                  x="780"
+                  y="242"
+                  text-anchor="middle"
+                  font-size="11"
+                  fill="#5a6b7b"
+                >
+                  + minimap mirror
+                </text>
+              </g>
+              <g stroke="#9aa7b4" stroke-width="1.5" marker-end="url(#arrow)">
+                <line x1="200" y1="228" x2="256" y2="228" />
+                <line x1="420" y1="228" x2="476" y2="228" />
+                <line x1="640" y1="228" x2="696" y2="228" />
+              </g>
+              <text
+                x="440"
+                y="320"
+                text-anchor="middle"
+                font-size="12"
+                fill="#5a6b7b"
+              >
+                Every edit (drag, add, delete) re-runs this loop: change _nodes
+                / _links → _autoLayout() → _renderLinks()
+              </text>
+            </svg>
+            <figcaption>
+              The eight stages of drawing one frame. Routing (step 5) is the
+              expensive one.
+            </figcaption>
+          </figure>
+        </section>
+
+        <!-- 3 -->
+        <section id="layout">
+          <h2>
+            <span class="num">3</span>Auto-layout — "tidy tree"<span
+              class="tag core"
+              >_autoLayout</span
+            >
+          </h2>
+          <p class="lead">
+            Place cards in top-to-bottom layers, children fanned out under their
+            parent, no overlaps.
+          </p>
+          <p>
+            <b>Simple version:</b> it's a family-tree layout. Work out how wide
+            each branch needs to be, then center each parent over its children.
+          </p>
+          <ol>
+            <li>
+              <b>Build parent → children</b> from the links. Cards with no
+              parent are <i>roots</i>.
+            </li>
+            <li>
+              <b>Measure subtree widths (bottom-up).</b> A leaf is one card
+              wide. A parent is as wide as its children combined, plus gaps. A
+              <code>visited</code> set stops cycles from looping forever.
+            </li>
+            <li>
+              <b>Assign a depth (layer)</b> to each card; remember the tallest
+              card per layer.
+            </li>
+            <li>
+              <b>Compute each layer's Y.</b> Layers with more wires passing
+              through them get a larger gap.
+            </li>
+            <li>
+              <b>Place cards (top-down):</b> position the parent, then spread
+              its children symmetrically around its center using the widths from
+              step 2.
+            </li>
+          </ol>
+          <div class="callout key">
+            <b>The one feature to remember — pinning.</b> When a user drags a
+            card it becomes <code>pinned</code>. Auto-layout then leaves it
+            exactly where the user put it, but still fans its children from that
+            spot. The toolbar "Auto Layout" button
+            (<code>_autoLayoutAction</code>) clears every pin to fully re-tidy —
+            <i>except</i> nodes that take part in a cycle.
+          </div>
+          <div class="callout warn">
+            <b>Cycles survive Auto Layout.</b> Before re-tidying,
+            <code>_autoLayoutAction</code> runs
+            <a href="#cycles">cycle detection</a> and
+            <b>re-pins every node touched by a back-edge</b> (both endpoints).
+            Those nodes keep their current position so a hand-arranged loop is
+            never disturbed; the rest of the graph fans out around them. This is
+            why dragging a node into a cycle and then hitting Auto Layout leaves
+            that node exactly where it was.
+          </div>
+
+          <h3>Step 2 in code — the width recurrence</h3>
+          <figure class="code">
+            <div class="codecap">
+              <span><span class="fn">computeWidth(nodeId)</span></span
+              ><span class="ln">src ~680–696</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">const</span> computeWidth = (nodeId) =&gt; {
+  <span class="c">// already seen → it's a cycle; charge one card and stop recursing</span>
+  <span class="k">if</span> (visited.has(nodeId)) <span class="k">return</span> NODE_W;
+  visited.add(nodeId);
+
+  <span class="c">// back-edge targets are filtered out so a cycle can't inflate the width</span>
+  <span class="k">const</span> children = (childrenMap.get(nodeId) || []).filter(c =&gt; !visited.has(c));
+  <span class="k">if</span> (children.length === <span class="n">0</span>) {                 <span class="c">// leaf</span>
+    subtreeWidths.set(nodeId, NODE_W);
+    <span class="k">return</span> NODE_W;
+  }
+  <span class="k">const</span> childWidths = children.map(computeWidth); <span class="c">// recurse (post-order)</span>
+  <span class="k">const</span> totalChildW = childWidths.reduce((s, w) =&gt; s + w, <span class="n">0</span>)
+                    + (children.length - <span class="n">1</span>) * MIN_SIBLING_GAP_X;
+  <span class="k">const</span> width = Math.max(NODE_W, totalChildW);    <span class="c">// never narrower than one card</span>
+  subtreeWidths.set(nodeId, width);
+  <span class="k">return</span> width;
+};</pre>
+          </figure>
+
+          <h3>Step 5 in code — placing a subtree</h3>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn"
+                  >positionSubtree(nodeId, centerX, parentBottom)</span
+                ></span
+              ><span class="ln">src ~753–787</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">const</span> positionSubtree = (nodeId, centerX, parentBottom) =&gt; {
+  <span class="k">if</span> (positioned.has(nodeId)) <span class="k">return</span>;
+  positioned.add(nodeId);
+  <span class="k">const</span> node = nodeMap.get(nodeId);
+  <span class="k">const</span> depth = nodeDepth.get(nodeId) || <span class="n">0</span>;
+
+  <span class="k">let</span> nodeCenterX;
+  <span class="k">if</span> (node.pinned) {
+    nodeCenterX = node.x + NODE_W / <span class="n">2</span>;          <span class="c">// keep the dragged position verbatim</span>
+  } <span class="k">else</span> {
+    <span class="c">// sit at the layer's Y, but never above a pinned ancestor dragged lower</span>
+    node.y = Math.max(layerY.get(depth) || <span class="n">200</span>, parentBottom + BASE_LAYER_GAP);
+    node.x = centerX - NODE_W / <span class="n">2</span>;
+    nodeCenterX = centerX;
+  }
+  <span class="k">const</span> nodeBottom = node.y + getNodeH(node);
+
+  <span class="k">const</span> children = (childrenMap.get(nodeId) || []).filter(c =&gt; !positioned.has(c));
+  <span class="k">if</span> (!children.length) <span class="k">return</span>;
+
+  <span class="k">const</span> widths = children.map(c =&gt; subtreeWidths.get(c) || NODE_W);
+  <span class="k">const</span> totalChildW = widths.reduce((s, w) =&gt; s + w, <span class="n">0</span>)
+                    + (children.length - <span class="n">1</span>) * MIN_SIBLING_GAP_X;
+
+  <span class="k">let</span> childX = nodeCenterX - totalChildW / <span class="n">2</span>;   <span class="c">// fan symmetrically around centre</span>
+  children.forEach((c, i) =&gt; {
+    <span class="k">const</span> cw = widths[i];
+    positionSubtree(c, childX + cw / <span class="n">2</span>, nodeBottom);
+    childX += cw + MIN_SIBLING_GAP_X;
+  });
+};</pre>
+          </figure>
+
+          <div class="deriv">
+            <b>Why the two-pass design.</b> Widths must be known
+            <i>before</i> placement, because a parent is centered over the
+            <i>combined</i> width of its children — which depends on
+            grandchildren, and so on. So pass 1 (<code>computeWidth</code>) is
+            strictly bottom-up (post-order), pass 2
+            (<code>positionSubtree</code>) is strictly top-down (pre-order).
+            This is the classic Reingold–Tilford "tidy tree" split.
+          </div>
+          <p>
+            <b>Complexity.</b> Each node is visited once per pass, each link
+            once when building the maps: <span class="cx">time O(V + E)</span
+            ><span class="cx">space O(V)</span>. The <code>visited</code>/<code
+              >positioned</code
+            >
+            sets make it safe on cyclic graphs.
+          </p>
+          <p>
+            The exact width and Y formulas are also collected in the
+            <a href="#math">math cheat-sheet</a>.
+          </p>
+        </section>
+
+        <!-- 4 -->
+        <section id="routing">
+          <h2><span class="num">4</span>Edge routing — the centerpiece</h2>
+          <p class="lead">
+            Draw a wire that is right-angled, never crosses a card,
+            leaves/enters cards perpendicularly, and looks clean.
+          </p>
+          <p>
+            There is a <b>primary router (A*)</b> and several
+            <b>hand-written fallbacks</b> for when A* can't find a path or the
+            graph is too large.
+          </p>
+
+          <h3 id="hanan">
+            4a · A* on a "Hanan grid"<span class="tag astar"
+              >routeOrthogonal</span
+            >
+          </h3>
+          <p>
+            <b>The problem:</b> the canvas is 6000×6000. Searching
+            pixel-by-pixel is 36 million cells — hopeless.
+          </p>
+          <p>
+            <b>The key trick (Hanan grid):</b> a right-angle path only ever
+            needs to turn at lines that line up with
+            <i>something important</i> — a port or a card edge. Collect just
+            those x-lines and y-lines; their grid of intersections is the search
+            space. That's a few hundred points instead of 36 million, and the
+            optimal path is still reachable.
+          </p>
+
+          <figure>
+            <!-- hanan-grid.svg inlined -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 560 380"
+              font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif"
+            >
+              <rect x="0" y="0" width="560" height="380" fill="#ffffff" />
+              <text
+                x="280"
+                y="28"
+                text-anchor="middle"
+                font-size="16"
+                font-weight="700"
+                fill="#1b2733"
+              >
+                Hanan grid: only card edges &amp; ports become grid lines
+              </text>
+              <g stroke="#d7e3f4" stroke-width="1" stroke-dasharray="4 4">
+                <line x1="120" y1="60" x2="120" y2="350" />
+                <line x1="240" y1="60" x2="240" y2="350" />
+                <line x1="360" y1="60" x2="360" y2="350" />
+                <line x1="480" y1="60" x2="480" y2="350" />
+                <line x1="180" y1="60" x2="180" y2="350" />
+                <line x1="420" y1="60" x2="420" y2="350" />
+                <line x1="90" y1="90" x2="510" y2="90" />
+                <line x1="90" y1="150" x2="510" y2="150" />
+                <line x1="90" y1="230" x2="510" y2="230" />
+                <line x1="90" y1="290" x2="510" y2="290" />
+              </g>
+              <g fill="#bcd0ec">
+                <circle cx="120" cy="90" r="2.5" />
+                <circle cx="240" cy="90" r="2.5" />
+                <circle cx="360" cy="90" r="2.5" />
+                <circle cx="480" cy="90" r="2.5" />
+                <circle cx="120" cy="150" r="2.5" />
+                <circle cx="240" cy="150" r="2.5" />
+                <circle cx="360" cy="150" r="2.5" />
+                <circle cx="480" cy="150" r="2.5" />
+                <circle cx="120" cy="230" r="2.5" />
+                <circle cx="240" cy="230" r="2.5" />
+                <circle cx="360" cy="230" r="2.5" />
+                <circle cx="480" cy="230" r="2.5" />
+                <circle cx="120" cy="290" r="2.5" />
+                <circle cx="240" cy="290" r="2.5" />
+                <circle cx="360" cy="290" r="2.5" />
+                <circle cx="480" cy="290" r="2.5" />
+                <circle cx="180" cy="150" r="2.5" />
+                <circle cx="180" cy="230" r="2.5" />
+                <circle cx="420" cy="150" r="2.5" />
+                <circle cx="420" cy="230" r="2.5" />
+              </g>
+              <g>
+                <rect
+                  x="120"
+                  y="90"
+                  width="120"
+                  height="60"
+                  rx="8"
+                  fill="#e8f0fe"
+                  stroke="#066afe"
+                  stroke-width="2"
+                />
+                <text
+                  x="180"
+                  y="125"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="600"
+                  fill="#066afe"
+                >
+                  Card A
+                </text>
+                <rect
+                  x="360"
+                  y="230"
+                  width="120"
+                  height="60"
+                  rx="8"
+                  fill="#e8f0fe"
+                  stroke="#066afe"
+                  stroke-width="2"
+                />
+                <text
+                  x="420"
+                  y="265"
+                  text-anchor="middle"
+                  font-size="13"
+                  font-weight="600"
+                  fill="#066afe"
+                >
+                  Card B
+                </text>
+              </g>
+              <path
+                d="M180,150 L180,190 L420,190 L420,230"
+                fill="none"
+                stroke="#4bca81"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="180" cy="150" r="4" fill="#4bca81" />
+              <path d="M414,222 L420,230 L426,222 Z" fill="#4bca81" />
+              <g font-size="12" fill="#5a6b7b">
+                <line
+                  x1="40"
+                  y1="350"
+                  x2="70"
+                  y2="350"
+                  stroke="#d7e3f4"
+                  stroke-width="1"
+                  stroke-dasharray="4 4"
+                />
+                <text x="76" y="354">grid line (card edge / port)</text>
+                <line
+                  x1="300"
+                  y1="350"
+                  x2="330"
+                  y2="350"
+                  stroke="#4bca81"
+                  stroke-width="3"
+                />
+                <text x="336" y="354">
+                  routed wire (turns only on grid lines)
+                </text>
+              </g>
+            </svg>
+            <figcaption>
+              The wire turns only on grid lines, which come only from card edges
+              and ports.
+            </figcaption>
+          </figure>
+
+          <h3>How it works, in order</h3>
+          <ol>
+            <li>
+              <b>Stubs.</b> Push a short fixed segment straight out of each port
+              (along the way it faces). The search runs between the stubs,
+              forcing clean perpendicular exits. The true port points are
+              stitched back on at the end.
+            </li>
+            <li>
+              <b>Grid lines.</b> Collect x/y from ports, stubs and padded card
+              edges, plus an outer "escape ring" so a wire can always go around
+              everything. Sort, drop near-duplicates.
+            </li>
+            <li>
+              <b>Cost map.</b> Each step costs <code>length × region</code>:
+              open = ×1, padding band = ×6 (allowed but discouraged so wires
+              don't hug edges), inside a card = ∞ (forbidden). Plus a flat
+              <b>bend penalty</b> on every 90° turn.
+            </li>
+            <li>
+              <b>A* search.</b> Manhattan heuristic. Two subtleties below.
+            </li>
+            <li><b>Rebuild &amp; simplify</b> to just the corners.</li>
+          </ol>
+          <div class="callout">
+            <b>Why the state includes direction.</b> The search state is
+            <code>(cell, arrival-direction)</code>, not just the cell — that's
+            the only way to charge a bend correctly, because "did we turn?"
+            depends on how we arrived. The search also starts already pointing
+            in the port's direction, so going straight out is free and an
+            immediate turn costs a bend.
+          </div>
+          <div class="callout key">
+            <b>Why a single midpoint sample is exact.</b> A* only checks cost at
+            the <i>midpoint</i> of each step — normally unreliable. It works
+            here because every card edge is itself a grid line, so no boundary
+            can fall between two adjacent lines. Each step lies entirely in one
+            region, so one sample tells the truth.
+          </div>
+          <div class="callout warn">
+            <b>Safety valve.</b> If the grid would exceed
+            <code>maxGridCells</code> (300k) A* returns <code>null</code> and
+            the caller uses a fallback router.
+          </div>
+
+          <h3>The cost of one cell</h3>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn"
+                  >pointCost(x, y, obstacles, padding, paddingPenalty)</span
+                ></span
+              ><span class="ln">src ~214–231</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">function</span> pointCost(x, y, obstacles, padding, paddingPenalty) {
+  <span class="k">let</span> cost = <span class="n">1</span>;                                   <span class="c">// open space</span>
+  <span class="k">for</span> (<span class="k">const</span> o <span class="k">of</span> obstacles) {
+    <span class="k">const</span> x1 = o.x, x2 = o.x + o.width;
+    <span class="k">const</span> y1 = o.y, y2 = o.y + o.height;
+    <span class="k">if</span> (x &gt; x1 &amp;&amp; x &lt; x2 &amp;&amp; y &gt; y1 &amp;&amp; y &lt; y2) <span class="k">return</span> Infinity;   <span class="c">// inside a card → forbidden</span>
+    <span class="k">if</span> (x &gt; x1 - padding &amp;&amp; x &lt; x2 + padding &amp;&amp;
+        y &gt; y1 - padding &amp;&amp; y &lt; y2 + padding) {
+      cost = Math.max(cost, paddingPenalty);     <span class="c">// inside the buffer band → discouraged (×6)</span>
+    }
+  }
+  <span class="k">return</span> cost;
+}</pre>
+          </figure>
+          <p>
+            Note the <b>strict</b> inequalities: the band's outer edge lines
+            (<code>obstacle ± padding</code>) stay cheap, so a wire is allowed
+            to sit <i>exactly</i> at the padding distance without being pushed
+            all the way out to the margin.
+          </p>
+
+          <h3>The A* main loop</h3>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">routeOrthogonal</span> — turn-aware A*</span
+              ><span class="ln">src ~359–391</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">while</span> (open.size &gt; <span class="n">0</span>) {
+  <span class="k">const</span> cur = open.pop();                         <span class="c">// lowest f-score (binary min-heap)</span>
+  <span class="k">const</span> ck = stateKey(cur.i, cur.j, cur.d);
+  <span class="k">if</span> (closed.has(ck)) <span class="k">continue</span>;                 <span class="c">// lazy deletion: skip stale heap entries</span>
+  closed.add(ck);
+  <span class="k">if</span> (cur.i === eI &amp;&amp; cur.j === eJ) { goal = cur; <span class="k">break</span>; }   <span class="c">// reached the goal cell</span>
+
+  <span class="k">const</span> cg = gScore.get(ck);
+  <span class="k">const</span> ax = xs[cur.i], ay = ys[cur.j];
+
+  <span class="k">for</span> (<span class="k">const</span> m <span class="k">of</span> MOVES) {                       <span class="c">// up / down / left / right</span>
+    <span class="k">const</span> ni = cur.i + m.di, nj = cur.j + m.dj;
+    <span class="k">if</span> (ni &lt; <span class="n">0</span> || nj &lt; <span class="n">0</span> || ni &gt;= W || nj &gt;= H) <span class="k">continue</span>;
+    <span class="k">const</span> bx = xs[ni], by = ys[nj];
+
+    <span class="c">// midpoint sample is exact because every card edge is a grid line (see callout)</span>
+    <span class="k">const</span> region = pointCost((ax+bx)/<span class="n">2</span>, (ay+by)/<span class="n">2</span>, obstacles, opt.padding, opt.paddingPenalty);
+    <span class="k">if</span> (!isFinite(region)) <span class="k">continue</span>;           <span class="c">// crosses a card core → blocked</span>
+
+    <span class="k">const</span> len  = Math.abs(bx-ax) + Math.abs(by-ay);  <span class="c">// real pixel length of this step</span>
+    <span class="k">let</span>   step = len * region;
+    <span class="k">if</span> (m.d !== cur.d) step += opt.bendPenalty;   <span class="c">// turning costs a flat penalty</span>
+
+    <span class="k">const</span> nk = stateKey(ni, nj, m.d);
+    <span class="k">const</span> ng = cg + step;
+    <span class="k">if</span> (ng &lt; (gScore.get(nk) ?? Infinity)) {      <span class="c">// relax</span>
+      gScore.set(nk, ng);
+      cameFrom.set(nk, { i: cur.i, j: cur.j, d: cur.d });
+      open.push({ i: ni, j: nj, d: m.d, f: ng + manhattan(bx, by) });
+    }
+  }
+}</pre>
+          </figure>
+
+          <div class="deriv">
+            <b>Why A* is guaranteed optimal here.</b> A* returns the least-cost
+            path whenever its heuristic <code>h</code> is <i>admissible</i> —
+            never larger than the true remaining cost. Here the true remaining
+            cost is at least the straight Manhattan distance (every step costs
+            <code>length × region</code> with <code>region ≥ 1</code>, and
+            bends/padding only <i>add</i>). The heuristic
+            <code>h = |Δx| + |Δy|</code> equals that lower bound, so
+            <code>h ≤ true cost</code> always ⇒ admissible ⇒ optimal. Folding
+            <b>direction</b> into the state is what lets the bend penalty be
+            part of <code>g</code> without breaking this.
+          </div>
+
+          <p>
+            <b>Complexity.</b> With <span class="cx">N</span> cards the grid has
+            <span class="cx">W ≈ 2N+c</span> x-lines and
+            <span class="cx">H ≈ 2N+c</span> y-lines. Each cell has 4
+            direction-states and 4 moves:
+            <span class="cx">states O(W·H) = O(N²)</span
+            ><span class="cx">heap ops O(N² log N)</span>. The hard cap
+            <code>W·H &gt; 300000</code> bounds this (~75 cards) before falling
+            back.
+          </p>
+
+          <h3>The open set — a hand-rolled binary heap</h3>
+          <figure class="code">
+            <div class="codecap">
+              <span><span class="fn">MinHeap.push / pop</span></span
+              ><span class="ln">src ~255–292</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">push</span>(v) {                       <span class="c">// sift up: O(log n)</span>
+  <span class="k">const</span> a = this.items; a.push(v);
+  <span class="k">let</span> i = a.length - <span class="n">1</span>;
+  <span class="k">while</span> (i &gt; <span class="n">0</span>) {
+    <span class="k">const</span> p = (i - <span class="n">1</span>) &gt;&gt; <span class="n">1</span>;        <span class="c">// parent index</span>
+    <span class="k">if</span> (this.cmp(a[i], a[p]) &lt; <span class="n">0</span>) { [a[i], a[p]] = [a[p], a[i]]; i = p; }
+    <span class="k">else</span> <span class="k">break</span>;
+  }
+}
+<span class="k">pop</span>() {                         <span class="c">// remove min, sift down: O(log n)</span>
+  <span class="k">const</span> a = this.items, top = a[<span class="n">0</span>], last = a.pop();
+  <span class="k">if</span> (a.length) {
+    a[<span class="n">0</span>] = last; <span class="k">let</span> i = <span class="n">0</span>;
+    <span class="k">for</span> (;;) {
+      <span class="k">const</span> l = <span class="n">2</span>*i+<span class="n">1</span>, r = <span class="n">2</span>*i+<span class="n">2</span>; <span class="k">let</span> s = i;
+      <span class="k">if</span> (l &lt; a.length &amp;&amp; this.cmp(a[l], a[s]) &lt; <span class="n">0</span>) s = l;
+      <span class="k">if</span> (r &lt; a.length &amp;&amp; this.cmp(a[r], a[s]) &lt; <span class="n">0</span>) s = r;
+      <span class="k">if</span> (s === i) <span class="k">break</span>;
+      [a[i], a[s]] = [a[s], a[i]]; i = s;
+    }
+  }
+  <span class="k">return</span> top;
+}</pre>
+          </figure>
+          <p>
+            There is deliberately <b>no decrease-key</b>: when a cheaper path to
+            a state is found, a fresh entry is pushed and the stale one is
+            skipped on pop via the <code>closed</code> set (the
+            <code>continue</code> in the loop above). Simpler, and fast enough
+            at this scale.
+          </p>
+
+          <h3>Cleaning up the path</h3>
+          <figure class="code">
+            <div class="codecap">
+              <span><span class="fn">simplifyOrthogonal(points)</span></span
+              ><span class="ln">src ~235–252</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="c">// 1. drop coincident points  2. collapse collinear runs → keep only corners</span>
+<span class="k">const</span> out = [dedup[<span class="n">0</span>]];
+<span class="k">for</span> (<span class="k">let</span> i = <span class="n">1</span>; i &lt; dedup.length - <span class="n">1</span>; i++) {
+  <span class="k">const</span> a = out[out.length-<span class="n">1</span>], b = dedup[i], c = dedup[i+<span class="n">1</span>];
+  <span class="k">const</span> collinear =
+    (Math.abs(a.x-b.x) &lt; <span class="n">0.5</span> &amp;&amp; Math.abs(b.x-c.x) &lt; <span class="n">0.5</span>) ||   <span class="c">// all share an x (vertical)</span>
+    (Math.abs(a.y-b.y) &lt; <span class="n">0.5</span> &amp;&amp; Math.abs(b.y-c.y) &lt; <span class="n">0.5</span>);    <span class="c">// all share a y (horizontal)</span>
+  <span class="k">if</span> (!collinear) out.push(b);                       <span class="c">// b is a real corner</span>
+}
+out.push(dedup[dedup.length-<span class="n">1</span>]);</pre>
+          </figure>
+
+          <h3>The fallback routers</h3>
+          <table>
+            <tr>
+              <th>Router</th>
+              <th>When</th>
+              <th>What it does</th>
+            </tr>
+            <tr>
+              <td><code>_forwardPolyline</code></td>
+              <td>Normal downward edge (also the <i>preferred</i> one)</td>
+              <td>
+                Picks a clear horizontal lane in the gap between layers; keeps
+                sibling fans tidy.
+              </td>
+            </tr>
+            <tr>
+              <td><code>_sidewaysPolyline</code></td>
+              <td>Two cards side by side</td>
+              <td>Finds a clear vertical lane between them.</td>
+            </tr>
+            <tr>
+              <td><code>_loopbackPolyline</code></td>
+              <td>A cycle that must wrap</td>
+              <td>
+                Routes out past the outermost card, runs vertically through open
+                space, back in.
+              </td>
+            </tr>
+            <tr>
+              <td><code>_sideChannelPolyline</code></td>
+              <td>Last resort</td>
+              <td>Channel around the side, widening until clear.</td>
+            </tr>
+          </table>
+          <p>
+            <b>Collision check:</b> <code>_segIntersectsRect</code> is the
+            <b>Liang–Barsky</b> line-clipping algorithm — "does this segment hit
+            this rectangle?" — used by <code>_polylineClear</code>.
+          </p>
+        </section>
+
+        <!-- 5 -->
+        <section id="ports">
+          <h2><span class="num">5</span>Where wires attach + lane spreading</h2>
+          <p class="lead">
+            Before routing, decide which card edge each wire uses, and spread
+            multiple wires so they don't pile up.
+          </p>
+          <h3>Choosing the side · <code>_classifyLinkSides</code></h3>
+          <ul>
+            <li>
+              Target clearly <b>below</b> → exit bottom, enter top (normal tree
+              edge).
+            </li>
+            <li>
+              Target <b>above</b> → back-edge: hand off to
+              <code>_chooseBackEdgeSides</code>, which tries a
+              <b>set of candidate side-pairs spanning all four edges</b> (top,
+              bottom, left, right for both ends), routes each with A*, and keeps
+              the cheapest.
+            </li>
+            <li>Cards <b>side by side</b> → connect on the facing sides.</li>
+          </ul>
+          <div class="callout key">
+            <b>Wires can attach to any side.</b> The candidate list in
+            <code>_chooseBackEdgeSides</code> isn't limited to left/right wraps
+            — it includes <code>top→bottom</code>,
+            <code>top→left/right</code> and <code>left/right→bottom</code>. So a
+            cycle whose target sits above its source can leave the <i>top</i> of
+            the source and enter the <i>bottom</i> of the target when that's the
+            shortest clean path, instead of always wrapping around the sides. A*
+            scores every candidate and the cheapest route wins, so the source
+            dot and target arrow each land on whichever edge reads best.
+          </div>
+          <h3>Spreading along one edge · <code>_spreadEdgePorts</code></h3>
+          <p>
+            Every wire on one edge — incoming and outgoing — is spread evenly,
+            <b>sorted by where its other end sits</b>, which guarantees they
+            don't cross right at the card.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">_spreadEdgePorts(group, ports)</span> —
+                vertical edge case</span
+              ><span class="ln">src ~964–1004</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="c">// sort members by where the OTHER endpoint sits → no crossings at the edge</span>
+<span class="k">const</span> sorted = [...group].sort((a, b) =&gt; otherCoord(a) - otherCoord(b));
+<span class="k">const</span> n = sorted.length;
+
+<span class="k">const</span> x  = side === <span class="s">'right'</span> ? node.x + NODE_W : node.x;
+<span class="k">const</span> lo = node.y + SIDE_VERTICAL_OVERLAP;        <span class="c">// inset from the top corner</span>
+<span class="k">const</span> hi = node.y + h - SIDE_VERTICAL_OVERLAP;    <span class="c">// inset from the bottom corner</span>
+
+sorted.forEach((m, i) =&gt; {
+  <span class="c">// one wire → dead centre; many → evenly spaced across [lo, hi]</span>
+  <span class="k">const</span> y = (n === <span class="n">1</span> || hi &lt;= lo) ? node.y + h/<span class="n">2</span>
+                              : lo + (hi - lo) * (i / (n - <span class="n">1</span>));
+  setPort(m, { x, y });
+});</pre>
+          </figure>
+
+          <h3>Sibling "fan" lanes · <code>_assignLanes</code></h3>
+          <p>
+            Children are split into those left and right of the parent. On each
+            side the <b>furthest child takes the top lane</b> and nearer
+            children tuck underneath — the clean symmetric fan, no crossings.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">_assignLanes</span> — split + sort per
+                side</span
+              ><span class="ln">src ~1011–1047</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">const</span> srcCx = group[<span class="n">0</span>].src.x + NODE_W / <span class="n">2</span>;
+<span class="k">const</span> leftGrp  = group.filter(c =&gt; c.tgt.x + NODE_W/<span class="n">2</span> &lt;= srcCx);
+<span class="k">const</span> rightGrp = group.filter(c =&gt; c.tgt.x + NODE_W/<span class="n">2</span> &gt;  srcCx);
+
+<span class="c">// left  → leftmost (furthest) gets laneIndex 0 = top lane</span>
+leftGrp.sort((a, b) =&gt; (a.tgt.x) - (b.tgt.x));
+<span class="c">// right → rightmost (furthest) gets laneIndex 0 = top lane (mirror image)</span>
+rightGrp.sort((a, b) =&gt; (b.tgt.x) - (a.tgt.x));
+
+[leftGrp, rightGrp].forEach((grp) =&gt; {
+  grp.forEach((item, i) =&gt; {
+    <span class="k">const</span> p = ports.get(item.link.id);
+    p.laneIndex = i; p.laneCount = grp.length;
+  });
+});</pre>
+          </figure>
+          <p>
+            The lane number becomes a Y position in
+            <code>_forwardPolyline</code>:
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span><span class="fn">_forwardPolyline</span> — lane → Y</span
+              ><span class="ln">src ~1226–1240</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">if</span> (laneCount &gt; <span class="n">1</span>) {
+  <span class="k">const</span> t = (laneIndex + <span class="n">1</span>) / (laneCount + <span class="n">1</span>);    <span class="c">// divide the band into N+1 slots</span>
+  preferred = stubTop + (stubBot - stubTop) * t;
+} <span class="k">else</span> {
+  preferred = (stubTop + stubBot) / <span class="n">2</span>;          <span class="c">// single wire → middle</span>
+}
+<span class="c">// then snap to the free horizontal gap closest to `preferred`</span></pre>
+          </figure>
+          <div class="deriv">
+            <b>Why <code>N+1</code> slots, not <code>N</code>.</b> We want
+            <code>N</code> lanes with equal gaps <i>and</i> a gap before the
+            first and after the last (so no wire hugs a card edge). Placing lane
+            <code>i</code> at fraction <code>t = (i+1)/(N+1)</code> for
+            <code>i = 0…N−1</code> yields positions
+            <code>1/(N+1), 2/(N+1), … N/(N+1)</code> — exactly
+            <code>N+1</code> equal intervals across the band, with the endpoints
+            left empty. Dividing by <code>N−1</code> instead would push the
+            outermost wires onto the edges.
+          </div>
+          <h3>Nested cycle lanes · <code>_assignBackEdgeLanes</code></h3>
+          <p>
+            Cycles on the same side are sorted by span; the
+            <b>widest wraps furthest out</b>, so nested loops form concentric
+            arcs instead of crossing.
+          </p>
+        </section>
+
+        <!-- 6 -->
+        <section id="cycles">
+          <h2>
+            <span class="num">6</span>Cycle detection<span class="tag core"
+              >_computeBackEdges</span
+            >
+          </h2>
+          <p class="lead">
+            Find links that loop back to an ancestor, so they can be styled
+            (amber, dashed).
+          </p>
+          <p>
+            <b>How:</b> a depth-first search tracking which nodes are currently
+            on the recursion stack. A link to a node already on the stack is a
+            back-edge.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">_computeBackEdges</span> — DFS with a
+                recursion stack</span
+              ><span class="ln">src ~1751–1779</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">const</span> onStack = <span class="k">new</span> Set();   <span class="c">// nodes in the current DFS path</span>
+<span class="k">const</span> done    = <span class="k">new</span> Set();   <span class="c">// fully explored</span>
+
+<span class="k">const</span> dfs = (nodeId) =&gt; {
+  onStack.add(nodeId);
+  <span class="k">for</span> (<span class="k">const</span> link <span class="k">of</span> (childLinks.get(nodeId) || [])) {
+    <span class="k">if</span> (onStack.has(link.target)) {
+      backEdges.add(link.id);        <span class="c">// points back to an ANCESTOR → cycle</span>
+    } <span class="k">else</span> <span class="k">if</span> (!done.has(link.target)) {
+      dfs(link.target);              <span class="c">// tree edge → descend</span>
+    }
+  }
+  onStack.delete(nodeId);            <span class="c">// leaving this node's subtree</span>
+  done.add(nodeId);
+};
+roots.forEach(r =&gt; { <span class="k">if</span> (!done.has(r.id)) dfs(r.id); });
+nodes.forEach(n =&gt; { <span class="k">if</span> (!done.has(n.id)) dfs(n.id); });  <span class="c">// disconnected components</span></pre>
+          </figure>
+          <p>
+            <b>The key distinction:</b> an edge to a node in
+            <code>onStack</code> is a true cycle; an edge to a node in
+            <code>done</code> (already finished, but not an ancestor) is a
+            harmless forward/cross edge and is <i>not</i> flagged.
+            <span class="cx">time O(V + E)</span>
+          </p>
+          <div class="callout warn">
+            <b>Topology, not geometry.</b> This is based on graph structure, not
+            screen position — so dragging a card physically above its neighbor
+            will <i>not</i> make a normal edge look like a cycle.
+          </div>
+          <p>
+            <b>Reused by Auto Layout.</b> The same back-edge set drives two
+            other features: the amber/dashed styling of cycle wires, and — via
+            <code>_autoLayoutAction</code> —
+            <a href="#layout">protecting cycle nodes from being re-flowed</a>
+            (their endpoints are re-pinned before the tidy layout runs).
+          </p>
+        </section>
+
+        <!-- 7 -->
+        <section id="jumps">
+          <h2>
+            <span class="num">7</span>Line jumps<span class="tag core"
+              >_assignLineJumps</span
+            >
+          </h2>
+          <p class="lead">
+            Where a later wire crosses an earlier one, draw a small arc "hop" so
+            the crossing reads clearly.
+          </p>
+          <p>
+            Every horizontal segment of a later wire is tested against every
+            vertical segment of earlier wires (and vice-versa). Because all
+            segments are axis-aligned, the intersection test is a couple of
+            range checks — no general line-line math needed.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">_assignLineJumps</span> —
+                horizontal-vs-vertical crossing</span
+              ><span class="ln">src ~1553–1563</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="c">// aj→bj is a HORIZONTAL segment at y; ai→bi is an earlier VERTICAL segment at x = vx</span>
+<span class="k">const</span> y    = aj.y;             <span class="c">// the horizontal line's height</span>
+<span class="k">const</span> vx   = ai.x;             <span class="c">// the vertical line's x</span>
+<span class="k">const</span> hxMin = Math.min(aj.x, bj.x), hxMax = Math.max(aj.x, bj.x);
+<span class="k">const</span> vyMin = Math.min(ai.y, bi.y), vyMax = Math.max(ai.y, bi.y);
+
+<span class="c">// they cross iff vx is strictly inside the H-span AND y is strictly inside the V-span</span>
+<span class="k">if</span> (vx &gt; hxMin + EPS &amp;&amp; vx &lt; hxMax - EPS &amp;&amp;
+    y  &gt; vyMin + EPS &amp;&amp; y  &lt; vyMax - EPS) {
+  gj.hops[sj].push(vx);        <span class="c">// record an arc at x = vx on this segment</span>
+}</pre>
+          </figure>
+          <p>
+            Only the <i>later</i> wire (index <code>j &gt; i</code>) hops, so
+            each crossing is bridged exactly once.
+            <code>_lineWithHops</code> then turns each recorded scalar into a
+            small SVG arc (<code>A r,r 0 0,sweep …</code>) while drawing that
+            segment, merging hops that are closer than one arc-diameter so they
+            don't overlap.
+          </p>
+          <div class="deriv">
+            <b>Cost.</b> It compares every segment pair across all wires:
+            <span class="cx">O((Σ segments)²)</span>. Fine for workflow-sized
+            graphs (tens of wires, a few segments each); if graphs ever get huge
+            this is the first place to add a sweep-line or spatial index.
+          </div>
+        </section>
+
+        <!-- 8 -->
+        <section id="misc">
+          <h2><span class="num">8</span>Smaller algorithms</h2>
+          <table>
+            <tr>
+              <th>Feature</th>
+              <th>Function</th>
+              <th>Idea</th>
+            </tr>
+            <tr>
+              <td>Drop a card without overlaps</td>
+              <td><code>_findFreePosition</code></td>
+              <td>
+                Spiral outward ring by ring; drop into nearest free slot.
+                Existing cards never move. Takes an optional
+                <code>excludeIds</code> set so a node isn't counted as
+                overlapping itself.
+              </td>
+            </tr>
+            <tr>
+              <td>Nudge a freshly placed card clear</td>
+              <td><code>_resolveOverlaps</code></td>
+              <td>
+                After a new card is (auto-)placed, if it still overlaps another
+                node it slides to the nearest free slot (via
+                <code>_findFreePosition</code>) and is pinned. See
+                <a href="#overlap">the note below</a>.
+              </td>
+            </tr>
+            <tr>
+              <td>Connect-drag → nearest card</td>
+              <td><code>_hitTestNode</code>, <code>_findClosestNode</code></td>
+              <td>Bounding-box / distance checks.</td>
+            </tr>
+            <tr>
+              <td>Add / delete a card (animated)</td>
+              <td>
+                CSS <code>node-enter</code> / <code>node-exit</code>,
+                <code>_deleteNode</code>
+              </td>
+              <td>
+                New cards fade+scale in on insert; deletes flag the card, play
+                the exit animation, then remove it after
+                <code>NODE_EXIT_MS</code>. See
+                <a href="#anim">the note below</a>.
+              </td>
+            </tr>
+            <tr>
+              <td>Undo / redo</td>
+              <td><code>_pushUndo</code></td>
+              <td>
+                Deep-clone the whole <code>{nodes, links}</code> state onto two
+                stacks (capped 50).
+              </td>
+            </tr>
+            <tr>
+              <td>Fit to screen</td>
+              <td><code>_fitToScreen</code></td>
+              <td>
+                Bounding box of all cards → scale + offset that centers it.
+              </td>
+            </tr>
+            <tr>
+              <td>Minimap</td>
+              <td><code>_updateMinimap</code></td>
+              <td>Same graph drawn small, with a viewport rectangle.</td>
+            </tr>
+            <tr>
+              <td>Execution animation</td>
+              <td><code>_runExecutionAnimation</code></td>
+              <td>
+                BFS from roots → visit order; a timer lights up each node and
+                wire (cycle links last).
+              </td>
+            </tr>
+          </table>
+
+          <h3>
+            Segment-vs-rectangle test (Liang–Barsky) ·
+            <code>_segIntersectsRect</code>
+          </h3>
+          <p>
+            Used by the fallback routers to ask "does this candidate segment hit
+            a card?". It parameterizes the segment as
+            <code>P(t) = A + t·(B−A)</code> for <code>t ∈ [0,1]</code> and clips
+            that interval against the four rectangle edges; if the surviving
+            interval is non-empty, they intersect.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span><span class="fn">_segIntersectsRect</span></span
+              ><span class="ln">src ~1093–1117</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">let</span> t0 = <span class="n">0</span>, t1 = <span class="n">1</span>;
+<span class="k">const</span> dx = x1 - x0, dy = y1 - y0;
+<span class="k">const</span> p = [-dx, dx, -dy, dy];                      <span class="c">// left, right, top, bottom</span>
+<span class="k">const</span> q = [x0 - rx, (rx+rw) - x0, y0 - ry, (ry+rh) - y0];
+<span class="k">for</span> (<span class="k">let</span> i = <span class="n">0</span>; i &lt; <span class="n">4</span>; i++) {
+  <span class="k">if</span> (p[i] === <span class="n">0</span>) {                              <span class="c">// segment parallel to this edge</span>
+    <span class="k">if</span> (q[i] &lt; <span class="n">0</span>) <span class="k">return</span> false;                  <span class="c">// …and outside → no hit</span>
+  } <span class="k">else</span> {
+    <span class="k">const</span> t = q[i] / p[i];
+    <span class="k">if</span> (p[i] &lt; <span class="n">0</span>) { <span class="k">if</span> (t &gt; t1) <span class="k">return</span> false; <span class="k">if</span> (t &gt; t0) t0 = t; }  <span class="c">// entering</span>
+    <span class="k">else</span>          { <span class="k">if</span> (t &lt; t0) <span class="k">return</span> false; <span class="k">if</span> (t &lt; t1) t1 = t; }  <span class="c">// leaving</span>
+  }
+}
+<span class="k">return</span> t0 &lt; t1;                                    <span class="c">// non-empty clipped interval ⇒ overlap</span></pre>
+          </figure>
+
+          <h3 id="overlap">
+            Collision-free placement (spiral ring search) ·
+            <code>_findFreePosition</code>
+          </h3>
+          <p>
+            To drop a new card without nudging any existing one, scan outward in
+            square "rings" from the desired spot and return the first free slot.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn"
+                  >_findFreePosition(desiredX, desiredY, w, h,
+                  excludeIds?)</span
+                ></span
+              ><span class="ln">src ~2225–2255</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">for</span> (<span class="k">let</span> ring = <span class="n">1</span>; ring &lt;= <span class="n">12</span>; ring++) {
+  <span class="k">const</span> candidates = [];
+  <span class="k">for</span> (<span class="k">let</span> dx = -ring; dx &lt;= ring; dx++)
+    <span class="k">for</span> (<span class="k">let</span> dy = <span class="n">0</span>; dy &lt;= ring; dy++) {            <span class="c">// only sideways / downward</span>
+      <span class="k">if</span> (Math.max(Math.abs(dx), dy) !== ring) <span class="k">continue</span>;  <span class="c">// ring perimeter only</span>
+      candidates.push({ x: desiredX + dx*colStep, y: desiredY + dy*rowStep });
+    }
+  <span class="c">// closest first; vertical moves weighted ×1.2 so a sideways slot wins ties</span>
+  <span class="k">const</span> cost = p =&gt; Math.abs(p.x-desiredX) + Math.abs(p.y-desiredY)*<span class="n">1.2</span> + (p.x&lt;desiredX ? <span class="n">0.01</span> : <span class="n">0</span>);
+  candidates.sort((a, b) =&gt; cost(a) - cost(b));
+  <span class="k">for</span> (<span class="k">const</span> c <span class="k">of</span> candidates) <span class="k">if</span> (!overlaps(c.x, c.y)) <span class="k">return</span> c;
+}</pre>
+          </figure>
+          <div class="deriv">
+            <b>Why a new card no longer overlaps after dragging.</b> Two
+            add-paths feed this: dropping from the palette
+            (<code>_addNodeFromPalette</code>) now routes the drop point through
+            <code>_findFreePosition</code> before placing the card; and the
+            "+"/Create-New-Stage path (<code>_addNodeBelow</code>) runs the
+            normal tidy layout, then calls
+            <code>_resolveOverlaps([transition, stage])</code> to slide any new
+            card clear of a <i>pinned</i> (dragged) neighbour the layout
+            couldn't move. The <code>excludeIds</code> argument is what lets a
+            card ignore itself while testing — without it a node already in
+            <code>_nodes</code> would always report a self-collision.
+          </div>
+
+          <h3 id="anim">Add / delete animations</h3>
+          <p>
+            Cards animate in and out so edits don't feel abrupt. This is done in
+            CSS on the child <code>workflowNode</code> component, kept
+            deliberately separate from the D3 render loop.
+          </p>
+          <ul>
+            <li>
+              <b>Enter</b> — the <code>.node-card</code> always carries a
+              <code>node-enter</code> keyframe (fade + scale-up). Because LWC
+              reuses DOM elements by their <code>key</code>, the animation only
+              fires when a card is <i>first inserted</i> (a genuinely new node,
+              or initial load) — it never replays on re-render or during a drag.
+            </li>
+            <li>
+              <b>Exit</b> — deletion can't be instant or there'd be nothing to
+              animate. <code>_deleteNode</code> flags the doomed card(s) by
+              adding their ids to the tracked <code>_deletingNodeIds</code> set,
+              which surfaces as <code>is-deleting</code> → the
+              <code>node-card--deleting</code> class → the
+              <code>node-exit</code> keyframe (fade + scale-down). Only after
+              <code>NODE_EXIT_MS</code> (220&nbsp;ms, matched to the CSS
+              duration) does a deferred callback actually drop the nodes/links
+              from the model and re-run layout.
+            </li>
+          </ul>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">_deleteNode</span> — animate, then
+                remove</span
+              ><span class="ln">src ~1991–2030</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="c">// 1. flag the cards so CSS plays the exit animation</span>
+<span class="k">const</span> deleting = <span class="k">new</span> Set(this._deletingNodeIds);
+removeIds.forEach(id =&gt; deleting.add(id));
+this._deletingNodeIds = deleting;
+
+<span class="c">// 2. remove from the model only after the animation has run</span>
+setTimeout(() =&gt; {
+  this._links = this._links.filter(l =&gt; !removeIds.has(l.source) &amp;&amp; !removeIds.has(l.target));
+  this._nodes = this._nodes.filter(n =&gt; !removeIds.has(n.id));
+  <span class="c">// …clear the deleting flags, then _autoLayout() + _renderLinks()</span>
+}, NODE_EXIT_MS);</pre>
+          </figure>
+          <div class="callout">
+            <b>Duration coupling.</b> The <code>NODE_EXIT_MS</code> constant in
+            the TS and the <code>node-exit</code> animation duration in
+            <code>workflowNode.css</code> must stay in sync — if the CSS is
+            slower than the timer the card vanishes mid-animation; if it's
+            faster the card sits frozen before removal.
+          </div>
+
+          <h3>Execution order (BFS) · <code>_runExecutionAnimation</code></h3>
+          <p>
+            The animation walks the graph breadth-first from the roots,
+            recording the order nodes/links are first reached. Edges that lead
+            to an already-visited node are cycles and are appended to play
+            <i>last</i>.
+          </p>
+          <figure class="code">
+            <div class="codecap">
+              <span
+                ><span class="fn">_runExecutionAnimation</span> — build the play
+                order</span
+              ><span class="ln">src ~2705–2721</span>
+            </div>
+            <pre
+              class="code"
+            ><span class="k">while</span> (bfs.length &gt; <span class="n">0</span>) {
+  <span class="k">const</span> { nodeId, fromLink } = bfs.shift();         <span class="c">// FIFO queue ⇒ breadth-first</span>
+  <span class="k">if</span> (visited.has(nodeId)) {
+    <span class="k">if</span> (fromLink) loopbackLinks.push(fromLink);     <span class="c">// re-reaching a node = cycle edge</span>
+    <span class="k">continue</span>;
+  }
+  visited.add(nodeId);
+  order.push({ nodeId, linkId: fromLink });
+  (childrenMap.get(nodeId) || []).forEach(link =&gt;
+    bfs.push({ nodeId: link.target, fromLink: link.id }));
+}
+loopbackLinks.forEach(linkId =&gt; order.push({ nodeId: null, linkId }));  <span class="c">// cycles play last</span></pre>
+          </figure>
+        </section>
+
+        <!-- 9 -->
+        <section id="math">
+          <h2><span class="num">9</span>Math cheat-sheet</h2>
+          <p class="lead">
+            The actual formulas, lifted from the code. Symbols: <code>k</code> =
+            number of children, <code>d</code> = layer depth.
+          </p>
+
+          <h3>Subtree width (bottom-up recurrence)</h3>
+          <div class="math">
+            <span class="cmt">// leaf:</span> &nbsp; W(n) = NODE_W<br />
+            <span class="cmt"
+              >// internal node with children c₁…c<span class="var">k</span
+              >:</span
+            ><br />
+            W(n) = max( NODE_W , &nbsp; Σ<sub>i=1..k</sub> W(cᵢ) &nbsp;+&nbsp;
+            (k − 1) · MIN_SIBLING_GAP_X )
+          </div>
+
+          <h3>Layer vertical position</h3>
+          <div class="math">
+            Y(0) = 200<br />
+            Y(d+1) = Y(d) + maxH(d) + BASE_LAYER_GAP + max(0, crossings(d) − 1)
+            · LANE_SPACING
+            <hr />
+            <span class="cmt"
+              >// crossings(d) = links that span across the gap below layer
+              d</span
+            >
+          </div>
+
+          <h3>Child placement (fan around parent center)</h3>
+          <div class="math">
+            startX = centerX − totalChildW / 2<br />
+            childCenterᵢ = startX + (Σ<sub>j&lt;i</sub> W(cⱼ) + (i)·GAP) +
+            W(cᵢ)/2
+          </div>
+
+          <h3>A* cost &amp; heuristic</h3>
+          <div class="math">
+            <span class="lbl">region(p)</span> = ∞ inside a card &nbsp;|&nbsp; 6
+            in padding band &nbsp;|&nbsp; 1 in open space<br />
+            <span class="lbl">step</span> &nbsp;= length · region(midpoint)
+            &nbsp;+&nbsp; (turned ? bendPenalty : 0)<br />
+            <span class="lbl">g(n)</span> &nbsp;&nbsp;= g(prev) + step<br />
+            <span class="lbl">h(n)</span> &nbsp;&nbsp;= |xₙ − x_goal| + |yₙ −
+            y_goal| &nbsp; <span class="cmt">(Manhattan)</span><br />
+            <span class="lbl">f(n)</span> &nbsp;&nbsp;= g(n) + h(n)
+            <hr />
+            <span class="cmt"
+              >// h never overestimates (bends &amp; padding only add cost) ⇒
+              admissible ⇒ optimal</span
+            ><br />
+            <span class="cmt">// state key packs cell + direction:</span><br />
+            stateKey(i, j, dir) = (j · W + i) · 4 + dir
+          </div>
+
+          <h3>Back-edge side selection</h3>
+          <div class="math">
+            cost(side-pair) = routeLength + bends · BACKEDGE_BEND_COST<br />
+            <span class="cmt"
+              >// pick the lowest-cost side-pair across the candidates, which
+              span all four</span
+            ><br />
+            <span class="cmt"
+              >// edges: top→bottom, top→left/right, left↔right,
+              left/right→bottom, left/left, right/right</span
+            >
+          </div>
+
+          <h3>Lane → coordinate (sibling fans &amp; sideways wires)</h3>
+          <div class="math">
+            t = (laneIndex + 1) / (laneCount + 1) &nbsp;
+            <span class="cmt">// divide band into N+1 slots</span><br />
+            midY = stubTop + (stubBot − stubTop) · t<br />
+            <span class="cmt"
+              >// the +1 keeps the first/last wire off the card edges</span
+            >
+          </div>
+
+          <h3>Nested cycle offset</h3>
+          <div class="math">
+            routeOffsetᵢ = i · BACKEDGE_LANE_GAP &nbsp;
+            <span class="cmt"
+              >// sorted by span; widest cycle = largest i = outermost</span
+            >
+          </div>
+
+          <h3>Fit to screen</h3>
+          <div class="math">
+            scale = min( viewW / contentW , viewH / contentH , 1.2 )<br />
+            tx = viewW/2 − centerX · scale &nbsp;&nbsp; ty = viewH/2 − centerY ·
+            scale
+          </div>
+
+          <h3>Screen ↔ canvas conversion (drag math)</h3>
+          <div class="math">
+            canvasX = (clientX − containerLeft − t.x) / t.k<br />
+            canvasY = (clientY − containerTop − t.y) / t.k<br />
+            <span class="cmt"
+              >// t = current zoom transform; t.k = scale, (t.x,t.y) = pan</span
+            >
+          </div>
+
+          <h3>Hanan grid size &amp; the A* state space</h3>
+          <div class="math">
+            W = |unique xs| ≤ <span class="n">4</span> +
+            <span class="n">2</span>·|obstacles| +
+            <span class="n">2</span> &nbsp;
+            <span class="cmt"
+              >// 4 endpoints/stubs, 2 padded edges each, 2 ring lines</span
+            ><br />
+            H = |unique ys| ≤ <span class="n">4</span> +
+            <span class="n">2</span>·|obstacles| + <span class="n">2</span
+            ><br />
+            states = W · H · <span class="n">4</span> directions &nbsp;&nbsp;
+            bail if &nbsp; W · H &gt; maxGridCells (<span class="n">300000</span
+            >)
+            <hr />
+            <span class="cmt"
+              >// with N cards: W,H = O(N) ⇒ states = O(N²) ⇒ A* runs in O(N²
+              log N)</span
+            >
+          </div>
+
+          <h3>Even port spread along an edge</h3>
+          <div class="math">
+            <span class="cmt"
+              >// n members on one edge, parameter for the i-th (0-based):</span
+            ><br />
+            coordᵢ = lo + (hi − lo) · ( i / (n − 1) ) &nbsp; for n &gt;
+            <span class="n">1</span><br />
+            coord₀ = (lo + hi) / 2 &nbsp; for n = <span class="n">1</span><br />
+            <span class="cmt"
+              >// horizontal edge: lo/hi inset by PORT_EDGE_MARGIN; vertical: by
+              SIDE_VERTICAL_OVERLAP</span
+            >
+          </div>
+
+          <h3>Line-jump arc &amp; hop merging</h3>
+          <div class="math">
+            arc at scalar h: &nbsp; L(h − r·dir) &nbsp;→&nbsp; A r,r 0 0,sweep
+            &nbsp;→&nbsp; (h + r·dir) &nbsp;
+            <span class="cmt">// r = HOP_RADIUS</span><br />
+            keep next hop only if &nbsp; |h − h_prev| &gt;
+            <span class="n">2</span>r + <span class="n">2</span> &nbsp;
+            <span class="cmt">// else they'd visually overlap</span>
+          </div>
+
+          <h3>Complexity summary</h3>
+          <table>
+            <tr>
+              <th>Algorithm</th>
+              <th>Time</th>
+              <th>Space</th>
+            </tr>
+            <tr>
+              <td>Auto-layout (both passes)</td>
+              <td><code>O(V + E)</code></td>
+              <td><code>O(V)</code></td>
+            </tr>
+            <tr>
+              <td>A* route (per wire)</td>
+              <td><code>O(N² log N)</code></td>
+              <td><code>O(N²)</code></td>
+            </tr>
+            <tr>
+              <td>All wires routed</td>
+              <td><code>O(E · N² log N)</code></td>
+              <td><code>O(N²)</code></td>
+            </tr>
+            <tr>
+              <td>Cycle detection (DFS)</td>
+              <td><code>O(V + E)</code></td>
+              <td><code>O(V)</code></td>
+            </tr>
+            <tr>
+              <td>Line jumps</td>
+              <td><code>O(S²)</code> over all segments</td>
+              <td><code>O(S)</code></td>
+            </tr>
+            <tr>
+              <td>Free-position search</td>
+              <td><code>O(R² · V)</code> (R = rings ≤ 12)</td>
+              <td><code>O(R²)</code></td>
+            </tr>
+            <tr>
+              <td>Heap push / pop</td>
+              <td><code>O(log n)</code></td>
+              <td><code>O(n)</code></td>
+            </tr>
+          </table>
+          <p class="lead" style="margin-top: 8px">
+            V = nodes, E = links, N = cards (obstacles), S = total wire
+            segments.
+          </p>
+        </section>
+
+        <!-- 10 -->
+        <section id="constants">
+          <h2><span class="num">10</span>Constants &amp; tuning</h2>
+          <table>
+            <tr>
+              <th>Constant</th>
+              <th>Meaning</th>
+            </tr>
+            <tr>
+              <td><code>NODE_W</code></td>
+              <td>Card width (all cards share it).</td>
+            </tr>
+            <tr>
+              <td><code>NODE_H_MAP</code> / <code>NODE_H_COLLAPSED</code></td>
+              <td>Card heights by type, expanded vs collapsed.</td>
+            </tr>
+            <tr>
+              <td><code>BASE_LAYER_GAP</code>, <code>LANE_SPACING</code></td>
+              <td>Vertical spacing between layers / extra per crossing.</td>
+            </tr>
+            <tr>
+              <td><code>MIN_SIBLING_GAP_X</code></td>
+              <td>Minimum horizontal gap between sibling subtrees.</td>
+            </tr>
+            <tr>
+              <td><code>ROUTE_DEFAULTS</code></td>
+              <td>
+                A* tuning: <code>padding</code>, <code>paddingPenalty</code>,
+                <code>bendPenalty</code>, <code>portStub</code>,
+                <code>margin</code>, <code>maxGridCells</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>CORNER_RADIUS</code>, <code>HOP_RADIUS</code></td>
+              <td>Corner rounding / line-jump arc size.</td>
+            </tr>
+          </table>
+          <div class="callout">
+            <b>Tuning tips</b>
+            <ul>
+              <li>
+                Wires hugging cards → raise <code>padding</code> or
+                <code>paddingPenalty</code>.
+              </li>
+              <li>Too many zig-zags → raise <code>bendPenalty</code>.</li>
+              <li>
+                A* falling back on big graphs → raise
+                <code>maxGridCells</code> (watch perf).
+              </li>
+              <li>
+                Sibling wires overlapping → that's the lane logic (§5), not the
+                router.
+              </li>
+            </ul>
+          </div>
+          <div class="callout key">
+            <b>Mental model.</b> Every hard problem here is solved by turning
+            something continuous into something small and discrete: routing → A*
+            over a few hundred grid points; wire spreading → divide a band into
+            N+1 slots; placement → spiral ring search. Pipeline to remember:
+            <b>layout → ports → A* route → render.</b>
+          </div>
+        </section>
+
+        <footer>
+          Generated alongside
+          <a
+            class="src"
+            href="../force-app/main/default/lwc/nodeBasedWorkflowGenerator/src/nodeBasedWorkflowGenerator.ts"
+            >nodeBasedWorkflowGenerator.ts</a
+          >
+          · companion to
+          <a
+            class="src"
+            href="../force-app/main/default/lwc/nodeBasedWorkflowGenerator/ALGORITHMS.md"
+            >ALGORITHMS.md</a
+          >
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
