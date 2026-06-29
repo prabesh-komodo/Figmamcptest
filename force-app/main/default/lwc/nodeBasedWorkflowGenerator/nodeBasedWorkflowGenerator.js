@@ -395,6 +395,14 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
   _redoStack = [];
   _animationRunning = false;
   _draggedPaletteType = null;
+  /* rAF handle for the layout glide tween (_animatePositions). 0 = idle. */
+  _layoutAnimRaf = 0;
+  /* During a glide tween this holds each node's FINAL position. Side/lane
+       decisions read positions through it (via _refX/_refY) so a wire keeps the
+       edge it will ultimately attach to for the whole animation — otherwise the
+       per-frame reclassification makes connectors flip between sides mid-glide.
+       null when no tween is running (decisions use live positions).            */
+  _sideRefPos = null;
   /* Per-render memo for A* routes, keyed by every input routeOrthogonal
        depends on. Back-edge side selection routes 4 candidate side-pairs and the
        geometry pass routes the winner again; when the winner's ports weren't
@@ -513,6 +521,11 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
   disconnectedCallback() {
     this._svg = null;
+    if (this._layoutAnimRaf) {
+      cancelAnimationFrame(this._layoutAnimRaf);
+      this._layoutAnimRaf = 0;
+    }
+    this._sideRefPos = null;
   }
 
   async _loadAndRender() {
@@ -804,6 +817,30 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     });
   }
 
+  /* Position a side/lane decision should use for a node: its final (target)
+       position while a glide tween is running, else its live position. Keeps the
+       chosen sides stable across the animation so connectors don't flip edges. */
+  _refX(n) {
+    const p = this._sideRefPos ? this._sideRefPos.get(n.id) : undefined;
+    return p ? p.x : n.x;
+  }
+  _refY(n) {
+    const p = this._sideRefPos ? this._sideRefPos.get(n.id) : undefined;
+    return p ? p.y : n.y;
+  }
+
+  /* Node boxes at the reference (final, when animating) positions — used for
+       back-edge side selection so the chosen side matches the settled layout. */
+  _buildSideBoxes() {
+    return this._nodes.map((n) => ({
+      id: n.id,
+      x: this._refX(n),
+      y: this._refY(n),
+      w: NODE_W,
+      h: getNodeH(n)
+    }));
+  }
+
   /* Choose which side of the source/target each link attaches to, based on
        the relative position of the two nodes:
         - target clearly below  -> exit bottom, enter top   (standard tree)
@@ -812,12 +849,12 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
   _classifyLinkSides(src, tgt, boxes) {
     const srcH = getNodeH(src);
     const tgtH = getNodeH(tgt);
-    const srcBottom = src.y + srcH;
-    const srcTop = src.y;
-    const tgtTop = tgt.y;
-    const tgtBottom = tgt.y + tgtH;
-    const srcCx = src.x + NODE_W / 2;
-    const tgtCx = tgt.x + NODE_W / 2;
+    const srcBottom = this._refY(src) + srcH;
+    const srcTop = this._refY(src);
+    const tgtTop = this._refY(tgt);
+    const tgtBottom = this._refY(tgt) + tgtH;
+    const srcCx = this._refX(src) + NODE_W / 2;
+    const tgtCx = this._refX(tgt) + NODE_W / 2;
 
     if (tgtTop >= srcBottom + MIN_STUB) {
       return { exitSide: "bottom", entrySide: "top" };
@@ -841,15 +878,17 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
        for the exact (post-spread) port, good enough to compare route costs. */
   _portPointForSide(node, side) {
     const h = getNodeH(node);
+    const x = this._refX(node);
+    const y = this._refY(node);
     switch (side) {
       case "right":
-        return { x: node.x + NODE_W, y: node.y + h / 2 };
+        return { x: x + NODE_W, y: y + h / 2 };
       case "left":
-        return { x: node.x, y: node.y + h / 2 };
+        return { x: x, y: y + h / 2 };
       case "top":
-        return { x: node.x + NODE_W / 2, y: node.y };
+        return { x: x + NODE_W / 2, y: y };
       default:
-        return { x: node.x + NODE_W / 2, y: node.y + h };
+        return { x: x + NODE_W / 2, y: y + h };
     }
   }
 
@@ -874,6 +913,10 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       { exitSide: "left", entrySide: "left" }
     ];
 
+    /* While a glide is running, judge candidates against the settled layout
+           (reference boxes) so the chosen side doesn't change frame to frame. */
+    const obsBoxes = this._sideRefPos ? this._buildSideBoxes() : boxes;
+
     let best = null;
     let bestCost = Infinity;
     candidates.forEach((c) => {
@@ -884,7 +927,7 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
         c.exitSide,
         entryPt,
         c.entrySide,
-        boxes,
+        obsBoxes,
         excludeIds
       );
       if (!route || route.length < 2) return;
@@ -905,8 +948,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     if (best) return best;
 
     /* A* found nothing routable — fall back to the geometric heuristic. */
-    const srcCx = src.x + NODE_W / 2;
-    const tgtCx = tgt.x + NODE_W / 2;
+    const srcCx = this._refX(src) + NODE_W / 2;
+    const tgtCx = this._refX(tgt) + NODE_W / 2;
     if (Math.abs(srcCx - tgtCx) <= NODE_W / 3) {
       return { exitSide: "left", entrySide: "left" };
     }
@@ -988,11 +1031,13 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const h = getNodeH(node);
     const horizontalEdge = side === "top" || side === "bottom";
 
-    /* Sort by where the OTHER endpoint sits, so lines don't cross */
+    /* Sort by where the OTHER endpoint sits, so lines don't cross. Uses the
+           reference (settled) position during a glide so the order along the
+           edge stays fixed — otherwise ports re-sort as cards pass each other. */
     const otherCoord = (m) => {
       return horizontalEdge
-        ? m.other.x + NODE_W / 2
-        : m.other.y + getNodeH(m.other) / 2;
+        ? this._refX(m.other) + NODE_W / 2
+        : this._refY(m.other) + getNodeH(m.other) / 2;
     };
     const sorted = [...group].sort((a, b) => otherCoord(a) - otherCoord(b));
     const n = sorted.length;
@@ -1043,19 +1088,24 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
     srcGroups.forEach((group) => {
       if (group.length < 2) return;
-      const srcCx = group[0].src.x + NODE_W / 2;
+      const srcCx = this._refX(group[0].src) + NODE_W / 2;
 
       /* Split into connectors going to the LEFT of source centre and
                those going to the RIGHT.  Each group is sorted so the FURTHEST
                target gets laneIndex 0 (topmost lane = shortest vertical stub),
-               exactly mirroring the reference JointJS fan pattern on both sides. */
-      const leftGrp = group.filter((c) => c.tgt.x + NODE_W / 2 <= srcCx);
-      const rightGrp = group.filter((c) => c.tgt.x + NODE_W / 2 > srcCx);
+               exactly mirroring the reference JointJS fan pattern on both sides.
+               Reference positions keep lane assignment stable during a glide.   */
+      const leftGrp = group.filter(
+        (c) => this._refX(c.tgt) + NODE_W / 2 <= srcCx
+      );
+      const rightGrp = group.filter(
+        (c) => this._refX(c.tgt) + NODE_W / 2 > srcCx
+      );
 
       /* Left  → ascending (leftmost = furthest = laneIndex 0 = top lane) */
-      leftGrp.sort((a, b) => a.tgt.x + NODE_W / 2 - (b.tgt.x + NODE_W / 2));
+      leftGrp.sort((a, b) => this._refX(a.tgt) - this._refX(b.tgt));
       /* Right → descending (rightmost = furthest = laneIndex 0 = top lane) */
-      rightGrp.sort((a, b) => b.tgt.x + NODE_W / 2 - (a.tgt.x + NODE_W / 2));
+      rightGrp.sort((a, b) => this._refX(b.tgt) - this._refX(a.tgt));
 
       [leftGrp, rightGrp].forEach((grp) => {
         const n = grp.length;
@@ -1089,8 +1139,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       /* Order by vertical reach so nested cycles nest cleanly: the one
                spanning the largest gap takes the outermost lane.              */
       group.sort((a, b) => {
-        const spanA = Math.abs(a.src.y - a.tgt.y);
-        const spanB = Math.abs(b.src.y - b.tgt.y);
+        const spanA = Math.abs(this._refY(a.src) - this._refY(a.tgt));
+        const spanB = Math.abs(this._refY(b.src) - this._refY(b.tgt));
         return spanA - spanB;
       });
       group.forEach((item, i) => {
@@ -1815,8 +1865,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       .attr("refX", 9)
       .attr("refY", 5)
       .attr("markerUnits", "userSpaceOnUse")
-      .attr("markerWidth", 11)
-      .attr("markerHeight", 11)
+      .attr("markerWidth", 13.75)
+      .attr("markerHeight", 13.75) // 25% larger
       .attr("orient", "auto-start-reverse")
       .append("path")
       .attr("d", "M1,2 L9,5 L1,8 Z")
@@ -1829,8 +1879,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       .attr("refX", 5)
       .attr("refY", 5)
       .attr("markerUnits", "userSpaceOnUse")
-      .attr("markerWidth", 8)
-      .attr("markerHeight", 8)
+      .attr("markerWidth", 10)
+      .attr("markerHeight", 10) // 25% larger
       .attr("orient", "auto")
       .append("circle")
       .attr("cx", 5)
@@ -2095,9 +2145,9 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const node = this._nodes.find((n) => n.id === nodeId);
     if (!node) return;
     node.isCollapsed = !node.isCollapsed;
-    this._nodes = [...this._nodes];
-    this._autoLayout();
-    this._renderLinks();
+    /* Card height changes (CSS animates that); glide neighbours to the new
+           layout so the collapse/expand reads as one smooth motion.            */
+    this._animatePositions(() => this._autoLayout());
   }
 
   handlePortDragStartEvent(event) {
@@ -2122,6 +2172,15 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
     const self = this;
     const node = this._nodes.find((n) => n.id === nodeId);
     if (!node) return;
+
+    /* Stop any layout glide so the drag takes over instantly (no fighting
+           the tween's per-frame position writes) and drop the frozen side
+           reference so routing uses live positions again.                       */
+    if (this._layoutAnimRaf) {
+      cancelAnimationFrame(this._layoutAnimRaf);
+      this._layoutAnimRaf = 0;
+    }
+    this._sideRefPos = null;
 
     const startNodeX = node.x;
     const startNodeY = node.y;
@@ -2218,8 +2277,8 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       const remaining = new Set(this._deletingNodeIds);
       removeIds.forEach((id) => remaining.delete(id));
       this._deletingNodeIds = remaining;
-      this._autoLayout();
-      this._renderLinks();
+      /* Glide the survivors in to close the gap left by the deleted card. */
+      this._animatePositions(() => this._autoLayout());
     }, NODE_EXIT_MS);
   }
 
@@ -2546,10 +2605,13 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
 
     this._pushUndo();
 
-    /* New transition + stage start under the parent's centre; the pin-aware
-           auto-layout then fans this parent's children out symmetrically and
-           shifts neighbours to make room — while any node the user has dragged
-           (pinned) keeps its manual position.                                 */
+    /* Seed the new transition + stage stacked just BELOW the parent (already
+           in child order), then glide them out to their final fanned positions.
+           Starting below the parent — never level with or above it — keeps each
+           connector a clean forward (bottom→top) edge for the whole animation,
+           so wires don't flip between sides as the cards settle. The pin-aware
+           auto-layout fans this parent's children out symmetrically and shifts
+           neighbours to make room, while any dragged (pinned) node stays put.   */
     const transId = nextId();
     const transNode = {
       id: transId,
@@ -2578,12 +2640,12 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       { id: "l" + transId, source: parentNode.id, target: transId },
       { id: "l" + stageId, source: transId, target: stageId }
     );
-    this._autoLayout();
-    /* Auto-layout respects pinned (dragged) nodes, so the freshly placed
-           transition/stage can still land on one. Nudge them clear if so.      */
-    this._resolveOverlaps([transId, stageId]);
-    this._nodes = [...this._nodes];
-    this._renderLinks();
+    this._animatePositions(() => {
+      this._autoLayout();
+      /* Auto-layout respects pinned (dragged) nodes, so the freshly placed
+               transition/stage can still land on one. Nudge them clear if so.   */
+      this._resolveOverlaps([transId, stageId]);
+    });
     this._selectNode(stageNode);
   }
 
@@ -2728,16 +2790,109 @@ export default class NodeBasedWorkflowGenerator extends LightningElement {
       }
     });
 
+    this._animatePositions(
+      () => {
+        this._nodes.forEach((n) => {
+          /* Pin = keep current position. Cycle nodes stay put; everything
+                   else is freed so the tree layout can reposition it.           */
+          n.pinned = cycleNodeIds.has(n.id);
+        });
+        this._autoLayout();
+      },
+      () => this._fitToScreen(true)
+    );
+  }
+
+  /* Smoothly glide cards from their current positions to the new layout, like
+       JointJS: capture where everything is, run `computeTargets` to work out the
+       final positions, then tween every node from old → new over one short
+       animation while re-routing the wires each frame so they stay attached to
+       the moving cards. New cards (no "old" position) simply appear at their
+       target and rely on the CSS enter animation. `onDone` fires once settled.  */
+  _animatePositions(computeTargets, onDone) {
+    if (this._layoutAnimRaf) {
+      cancelAnimationFrame(this._layoutAnimRaf);
+      this._layoutAnimRaf = 0;
+    }
+
+    const oldPos = new Map();
+    this._nodes.forEach((n) => oldPos.set(n.id, { x: n.x, y: n.y }));
+
+    computeTargets();
+
+    const targetPos = new Map();
+    let moved = false;
     this._nodes.forEach((n) => {
-      /* Pin = keep current position. Cycle nodes stay put; everything else
-               is freed so the tree layout can reposition it.                    */
-      n.pinned = cycleNodeIds.has(n.id);
+      targetPos.set(n.id, { x: n.x, y: n.y });
+      const o = oldPos.get(n.id);
+      if (!o || Math.abs(o.x - n.x) > 0.5 || Math.abs(o.y - n.y) > 0.5)
+        moved = true;
     });
 
-    this._autoLayout();
-    this._nodes = [...this._nodes];
-    this._renderLinks();
-    this._fitToScreen(true);
+    /* Nothing actually shifted → skip the tween, just redraw. */
+    if (!moved) {
+      this._sideRefPos = null;
+      this._nodes = [...this._nodes];
+      this._renderLinks();
+      if (onDone) onDone();
+      return;
+    }
+
+    /* Freeze side/lane decisions to the settled layout for the whole glide so
+           connectors keep their final edges instead of flipping each frame.     */
+    this._sideRefPos = targetPos;
+
+    /* Rewind every existing node to where it started; the tween walks it back
+           to the target. (New nodes keep their target as their start.)          */
+    this._nodes.forEach((n) => {
+      const o = oldPos.get(n.id);
+      if (o) {
+        n.x = o.x;
+        n.y = o.y;
+      }
+    });
+
+    const DURATION = 420;
+    const startTime = Date.now();
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - startTime) / DURATION);
+      const e = easeOutCubic(t);
+      this._nodes.forEach((n) => {
+        const o = oldPos.get(n.id);
+        const tg = targetPos.get(n.id);
+        if (!tg) return;
+        if (o) {
+          n.x = o.x + (tg.x - o.x) * e;
+          n.y = o.y + (tg.y - o.y) * e;
+        } else {
+          n.x = tg.x;
+          n.y = tg.y;
+        }
+      });
+      this._nodes = [...this._nodes]; // reactive re-position of the cards
+      this._renderLinks(); // wires follow the cards every frame
+      if (t < 1) {
+        // eslint-disable-next-line @lwc/lwc/no-async-operation -- per-frame layout glide tween
+        this._layoutAnimRaf = requestAnimationFrame(tick);
+      } else {
+        this._nodes.forEach((n) => {
+          const tg = targetPos.get(n.id);
+          if (tg) {
+            n.x = tg.x;
+            n.y = tg.y;
+          } // snap to exact targets
+        });
+        this._sideRefPos = null; // back to live-position decisions
+        this._nodes = [...this._nodes];
+        this._renderLinks();
+        this._layoutAnimRaf = 0;
+        if (onDone) onDone();
+      }
+    };
+    // eslint-disable-next-line @lwc/lwc/no-async-operation -- per-frame layout glide tween
+    this._layoutAnimRaf = requestAnimationFrame(tick);
   }
 
   _zoomBy(factor) {

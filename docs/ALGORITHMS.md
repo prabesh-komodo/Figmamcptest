@@ -277,20 +277,43 @@ without it, a node already in `_nodes` would always report a self-collision.
 
 ### 8b. Add / delete animations
 
-Cards animate in and out so edits don't feel abrupt. This is done in **CSS on the
-child `workflowNode` component**, kept deliberately separate from the D3 render
-loop:
+Edits don't snap — they animate, JointJS-style. There are **two cooperating
+pieces**: a per-card **scale/fade** (CSS, on the child `workflowNode` component)
+and a whole-graph **position glide** (JS, `_animatePositions`).
 
-- **Enter** — `.node-card` always carries a `node-enter` keyframe (fade +
-  scale-up). Because LWC reuses DOM elements by their `key`, the animation only
-  fires when a card is _first inserted_ (a genuinely new node, or initial load) —
-  it never replays on re-render or during a drag.
-- **Exit** — deletion can't be instant or there'd be nothing to animate.
-  `_deleteNode` flags the doomed card(s) by adding their ids to the tracked
+- **Enter (scale/fade)** — `.node-card` always carries a `node-enter` keyframe
+  (fade + scale-up with a gentle overshoot). Because LWC reuses DOM elements by
+  their `key`, the animation only fires when a card is _first inserted_ (a
+  genuinely new node, or initial load) — never on re-render or during a drag.
+- **Exit (scale/fade)** — deletion can't be instant or there'd be nothing to
+  animate. `_deleteNode` flags the doomed card(s) into the tracked
   `_deletingNodeIds` set, which surfaces as `is-deleting` → the
   `node-card--deleting` class → the `node-exit` keyframe (fade + scale-down). Only
-  after `NODE_EXIT_MS` (220 ms, matched to the CSS duration) does a deferred
-  callback actually drop the nodes/links from the model and re-run layout.
+  after `NODE_EXIT_MS` (220 ms, matched to the CSS) does a deferred callback drop
+  the nodes/links and then _glide the survivors in_ to close the gap.
+
+**The glide tween — `_animatePositions(computeTargets, onDone)`:** this is what
+makes a layout change feel like motion instead of a jump. It (1) snapshots every
+card's current position, (2) runs `computeTargets()` — usually `_autoLayout()` —
+to work out the new positions, then (3) tweens every card from old→new over
+~420 ms (ease-out-cubic), **re-routing the wires on every frame** so they stay
+attached to the moving cards. New cards have no "old" position, so they appear at
+their target and let the CSS enter animation play; a freshly added stage is first
+seeded at its parent's position so it looks like it grows out of the parent. It's
+used by add (`_addNodeBelow`), delete, collapse/expand, and the Auto Layout
+button. A drag cancels any running tween (`_layoutAnimRaf`) so the pointer takes
+over instantly.
+
+**Connectors don't flip mid-glide:** if the wires were re-classified from the
+live positions every frame, a card passing above/beside another would make its
+connector jump between edges and then snap straight. To prevent that, the tween
+publishes each node's _final_ position in `_sideRefPos`; the side/lane decisions
+(`_classifyLinkSides`, `_chooseBackEdgeSides`, port spread & lane ordering) read
+positions through `_refX` / `_refY`, which return that settled position while
+animating. So a wire keeps the edge it will ultimately attach to for the whole
+glide and only its shape eases into place — endpoint _coordinates_ still track
+the live cards. New nodes are also seeded just _below_ their parent so the edge
+is a clean forward (bottom→top) one from the first frame.
 
 > **Duration coupling:** `NODE_EXIT_MS` in the `.ts` and the `node-exit`
 > animation duration in `workflowNode.css` must stay in sync — if the CSS is

@@ -1722,30 +1722,68 @@ nodes.forEach(n =&gt; { <span class="k">if</span> (!done.has(n.id)) dfs(n.id); }
 
           <h3 id="anim">Add / delete animations</h3>
           <p>
-            Cards animate in and out so edits don't feel abrupt. This is done in
-            CSS on the child <code>workflowNode</code> component, kept
-            deliberately separate from the D3 render loop.
+            Edits don't snap — they animate, JointJS-style. There are
+            <b>two cooperating pieces</b>: a per-card <b>scale/fade</b> (CSS, on
+            the child <code>workflowNode</code> component) and a whole-graph
+            <b>position glide</b> (JS, <code>_animatePositions</code>) that
+            moves every card to its new spot while the wires follow.
           </p>
           <ul>
             <li>
-              <b>Enter</b> — the <code>.node-card</code> always carries a
-              <code>node-enter</code> keyframe (fade + scale-up). Because LWC
-              reuses DOM elements by their <code>key</code>, the animation only
-              fires when a card is <i>first inserted</i> (a genuinely new node,
-              or initial load) — it never replays on re-render or during a drag.
+              <b>Enter (scale/fade)</b> — the <code>.node-card</code> always
+              carries a <code>node-enter</code> keyframe (fade + scale-up with a
+              gentle overshoot). Because LWC reuses DOM elements by their
+              <code>key</code>, it only fires when a card is
+              <i>first inserted</i> (a genuinely new node, or initial load) —
+              never on re-render or during a drag.
             </li>
             <li>
-              <b>Exit</b> — deletion can't be instant or there'd be nothing to
-              animate. <code>_deleteNode</code> flags the doomed card(s) by
-              adding their ids to the tracked <code>_deletingNodeIds</code> set,
-              which surfaces as <code>is-deleting</code> → the
+              <b>Exit (scale/fade)</b> — deletion can't be instant or there'd be
+              nothing to animate. <code>_deleteNode</code> flags the doomed
+              card(s) into the tracked <code>_deletingNodeIds</code> set, which
+              surfaces as <code>is-deleting</code> → the
               <code>node-card--deleting</code> class → the
               <code>node-exit</code> keyframe (fade + scale-down). Only after
-              <code>NODE_EXIT_MS</code> (220&nbsp;ms, matched to the CSS
-              duration) does a deferred callback actually drop the nodes/links
-              from the model and re-run layout.
+              <code>NODE_EXIT_MS</code> (220&nbsp;ms, matched to the CSS) does a
+              deferred callback drop the nodes/links and then
+              <i>glide the survivors in</i> to close the gap.
             </li>
           </ul>
+          <div class="callout key">
+            <b
+              >The glide tween —
+              <code>_animatePositions(computeTargets, onDone)</code>.</b
+            >
+            This is what turns a layout change into motion instead of a jump. It
+            (1) snapshots every card's current position, (2) runs
+            <code>computeTargets()</code> — usually <code>_autoLayout()</code> —
+            to work out the new positions, then (3) tweens every card from
+            old→new over ~420&nbsp;ms (ease-out-cubic),
+            <b>re-routing the wires on every frame</b> so they stay attached to
+            the moving cards. New cards have no "old" position, so they appear
+            at their target and let the CSS enter animation play; a freshly
+            added stage is first seeded at its parent's position, so it looks
+            like it grows out of the parent. Used by add
+            (<code>_addNodeBelow</code>), delete, collapse/expand, and the
+            Auto&nbsp;Layout button. A drag cancels any running tween
+            (<code>_layoutAnimRaf</code>) so the pointer takes over instantly.
+          </div>
+          <div class="callout warn">
+            <b>Connectors don't flip mid-glide.</b> If the wires were
+            re-classified from the live positions every frame, a card passing
+            above/beside another would make its connector jump between edges and
+            then snap straight. To prevent that, the tween publishes each node's
+            <i>final</i> position in <code>_sideRefPos</code>; the side/lane
+            decisions (<code>_classifyLinkSides</code>,
+            <code>_chooseBackEdgeSides</code>, port spread &amp; lane ordering)
+            read positions through <code>_refX</code>/<code>_refY</code>, which
+            return that settled position while animating. So a wire keeps the
+            edge it will ultimately attach to for the whole glide and only its
+            shape eases into place; endpoint <i>coordinates</i> still track the
+            live cards. New nodes are also seeded just <i>below</i> their parent
+            so the edge is a clean forward (bottom→top) one from the first
+            frame.
+          </div>
           <figure class="code">
             <div class="codecap">
               <span
@@ -1764,7 +1802,7 @@ this._deletingNodeIds = deleting;
 setTimeout(() =&gt; {
   this._links = this._links.filter(l =&gt; !removeIds.has(l.source) &amp;&amp; !removeIds.has(l.target));
   this._nodes = this._nodes.filter(n =&gt; !removeIds.has(n.id));
-  <span class="c">// …clear the deleting flags, then _autoLayout() + _renderLinks()</span>
+  <span class="c">// …clear the deleting flags, then _animatePositions(() =&gt; _autoLayout())</span>
 }, NODE_EXIT_MS);</pre>
           </figure>
           <div class="callout">
