@@ -1,0 +1,122 @@
+<template>
+  <lightning-modal-header label={label}></lightning-modal-header>
+  <lightning-modal-body>
+    <!-- Step 1: Personal -->
+    <template if:true={isStep1}>
+      <div class="slds-grid slds-gutters_small slds-wrap">
+        <div class="slds-col slds-size_1-of-1">
+          <lightning-combobox
+            label="Salutation"
+            data-field="salutation"
+            value={formData.salutation}
+            options={salutationOptions}
+            onchange={handleFieldChange}
+          ></lightning-combobox>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+          <lightning-input
+            label="First Name"
+            data-field="firstName"
+            value={formData.firstName}
+            onchange={handleFieldChange}
+          ></lightning-input>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+          <lightning-input
+            label="Last Name"
+            data-field="lastName"
+            value={formData.lastName}
+            required
+            onchange={handleFieldChange}
+          ></lightning-input>
+        </div>
+      </div>
+    </template>
+
+    <!-- Step 2: Contact -->
+    <template if:true={isStep2}>
+      <div class="slds-grid slds-gutters_small slds-wrap">
+        <div class="slds-col slds-size_1-of-1">
+          <lightning-input
+            type="email"
+            label="Email"
+            data-field="email"
+            value={formData.email}
+            onchange={handleFieldChange}
+          ></lightning-input>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+          <lightning-input
+            type="tel"
+            label="Phone"
+            data-field="phone"
+            value={formData.phone}
+            onchange={handleFieldChange}
+          ></lightning-input>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+          <lightning-input
+            type="tel"
+            label="Mobile"
+            data-field="mobile"
+            value={formData.mobile}
+            onchange={handleFieldChange}
+          ></lightning-input>
+        </div>
+      </div>
+    </template>
+  </lightning-modal-body>
+
+  <lightning-modal-footer>
+    <div class="slds-grid slds-grid_vertical-align-center slds-size_1-of-1">
+      <div class="slds-col slds-grid slds-grid_align-start slds-size_4-of-12">
+        <lightning-button
+          label="Cancel"
+          onclick={handleCancel}
+        ></lightning-button>
+      </div>
+      <div class="slds-col slds-grid slds-grid_align-center slds-size_4-of-12">
+        <lightning-progress-indicator
+          current-step={currentStepValue}
+          type="base"
+          variant="base"
+        >
+          <lightning-progress-step
+            label="Personal"
+            value="step-1"
+          ></lightning-progress-step>
+          <lightning-progress-step
+            label="Contact"
+            value="step-2"
+          ></lightning-progress-step>
+        </lightning-progress-indicator>
+      </div>
+      <div class="slds-col slds-grid slds-grid_align-end slds-size_4-of-12">
+        <template if:false={isFirstStep}>
+          <lightning-button
+            label="Previous"
+            icon-name="utility:chevronleft"
+            onclick={handlePrevious}
+            class="slds-m-right_x-small"
+          ></lightning-button>
+        </template>
+        <template if:false={isLastStep}>
+          <lightning-button
+            label="Next"
+            icon-name="utility:chevronright"
+            icon-position="right"
+            variant="brand"
+            onclick={handleNext}
+          ></lightning-button>
+        </template>
+        <template if:true={isLastStep}>
+          <lightning-button
+            label="Submit"
+            variant="brand"
+            onclick={handleSubmit}
+          ></lightning-button>
+        </template>
+      </div>
+    </div>
+  </lightning-modal-footer>
+</template>

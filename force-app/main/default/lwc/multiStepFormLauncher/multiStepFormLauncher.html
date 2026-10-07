@@ -1,0 +1,16 @@
+<template>
+  <lightning-card title="Multi-step form" icon-name="utility:form">
+    <div class="slds-p-around_medium">
+      <p class="slds-text-body_small slds-m-bottom_small">
+        Opens a Salesforce modal popup that guides the user through a multi-step
+        form with a progress indicator for personal, contact, and address
+        details.
+      </p>
+      <lightning-button
+        label="Open form"
+        variant="brand"
+        onclick={handleOpenModal}
+      ></lightning-button>
+    </div>
+  </lightning-card>
+</template>

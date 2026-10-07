@@ -57,6 +57,25 @@ declare module 'c/multiRowInputModal' {
     export default MultiRowInputModal;
 }
 
+declare module 'c/multiStepFormModal' {
+    interface MultiStepFormModalOpenOptions {
+        label?: string;
+        size?: 'small' | 'medium' | 'large';
+    }
+    interface MultiStepFormData {
+        salutation: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        mobile: string;
+    }
+    const MultiStepFormModal: {
+        open(options?: MultiStepFormModalOpenOptions): Promise<{ data: MultiStepFormData } | undefined>;
+    };
+    export default MultiStepFormModal;
+}
+
 declare module '@salesforce/resourceUrl/d3' {
     const resourceUrl: string;
     export default resourceUrl;

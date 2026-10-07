@@ -1,0 +1,5 @@
+/* Modal height follows content; no SLDS utility equivalent needed for layout here. */
+
+:host {
+  display: block;
+}
