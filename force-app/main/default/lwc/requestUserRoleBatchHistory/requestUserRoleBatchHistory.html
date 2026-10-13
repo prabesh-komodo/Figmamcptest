@@ -1,0 +1,79 @@
+<template>
+  <div class="slds-scrollable_y history">
+    <c-page-container>
+      <div class="slds-p-around_medium">
+        <template lwc:if={hasBatches}>
+          <article class="slds-card slds-scrollable_none history-card">
+            <c-request-user-role-explorer-datatable
+              key-field="id"
+              data={pagedRows}
+              columns={columns}
+              hide-checkbox-column
+              sorted-by={sortedBy}
+              sorted-direction={sortDirection}
+              onsort={handleSort}
+              onlinkcellclick={handleLinkCellClick}
+            ></c-request-user-role-explorer-datatable>
+          </article>
+
+          <nav
+            class="slds-grid slds-grid_vertical-align-center slds-border_top slds-m-top_small slds-p-top_x-small"
+            aria-label="Pagination"
+          >
+            <span
+              class="slds-text-body_small slds-text-color_weak slds-m-right_small"
+            >
+              Rows per page:
+            </span>
+            <lightning-combobox
+              name="page-size"
+              label="Rows per page"
+              variant="label-hidden"
+              dropdown-alignment="bottom-left"
+              options={pageSizeOptions}
+              value={pageSizeValue}
+              class="slds-m-right_small page-size-picker"
+              onchange={handlePageSizeChange}
+            ></lightning-combobox>
+            <span
+              class="slds-text-body_regular pagination__text"
+              aria-live="polite"
+            >
+              {showingLabel}
+            </span>
+            <div
+              class="slds-col_bump-left slds-grid slds-grid_vertical-align-center"
+            >
+              <lightning-button
+                label="Previous"
+                disabled={isPreviousDisabled}
+                onclick={handlePreviousPage}
+              ></lightning-button>
+              <span
+                class="slds-text-body_regular slds-text-align_center slds-m-horizontal_small pagination__text pagination__page"
+              >
+                {pageLabel}
+              </span>
+              <lightning-button
+                label="Next"
+                disabled={isNextDisabled}
+                onclick={handleNextPage}
+              ></lightning-button>
+            </div>
+          </nav>
+        </template>
+        <template lwc:else>
+          <div
+            class="slds-box slds-theme_default slds-text-align_center slds-p-around_large history-card"
+            role="status"
+          >
+            <p class="slds-text-heading_small">No batches yet.</p>
+            <p class="slds-text-color_weak slds-m-top_xx-small">
+              Replace User, Deactivate and Add Role runs will be listed here.
+            </p>
+          </div>
+        </template>
+      </div>
+    </c-page-container>
+  </div>
+</template>

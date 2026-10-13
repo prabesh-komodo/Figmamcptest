@@ -1,0 +1,12 @@
+/*
+ * Note text colours from the Bulk Flow design. The org's on-warning/on-success
+ * hooks resolve to unrelated colours (white text for success), so palette
+ * tokens with the design values as fallbacks are used instead.
+ */
+.note-text_warning {
+  color: var(--slds-g-color-palette-orange-40, #8c4b02);
+}
+
+.note-text_success {
+  color: var(--slds-g-color-palette-teal-40, #056764);
+}

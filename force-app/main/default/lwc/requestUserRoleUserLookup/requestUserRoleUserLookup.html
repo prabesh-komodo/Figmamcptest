@@ -1,0 +1,118 @@
+<template>
+  <div class="slds-form-element">
+    <label
+      class="slds-form-element__label slds-assistive-text"
+      for="user-lookup-input"
+    >
+      {label}
+    </label>
+    <div class="slds-form-element__control">
+      <div class="slds-combobox_container">
+        <div class={comboboxClass}>
+          <div
+            class="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right"
+            role="none"
+          >
+            <input
+              type="text"
+              id="user-lookup-input"
+              class={inputClass}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="user-lookup-listbox"
+              aria-expanded={ariaExpanded}
+              aria-activedescendant={activeOptionId}
+              autocomplete="off"
+              placeholder={placeholder}
+              value={inputValue}
+              disabled={disabled}
+              readonly={picklist}
+              oninput={handleInput}
+              onclick={handleClick}
+              onfocus={handleFocus}
+              onblur={handleBlur}
+              onkeydown={handleKeyDown}
+            />
+            <template lwc:if={showClear}>
+              <button
+                type="button"
+                class="slds-button slds-button_icon slds-input__icon slds-input__icon_right"
+                title="Clear selection"
+                disabled={disabled}
+                onclick={handleClear}
+              >
+                <lightning-icon
+                  icon-name="utility:close"
+                  size="xx-small"
+                  class="slds-button__icon"
+                ></lightning-icon>
+                <span class="slds-assistive-text">Clear selection</span>
+              </button>
+            </template>
+            <template lwc:else>
+              <lightning-icon
+                icon-name={rightIcon}
+                size="x-small"
+                class="slds-input__icon slds-input__icon_right"
+              ></lightning-icon>
+            </template>
+          </div>
+          <div
+            id="user-lookup-listbox"
+            class="slds-dropdown slds-dropdown_left slds-dropdown_length-7 lookup-dropdown"
+            role="listbox"
+            aria-label={label}
+          >
+            <ul class="slds-listbox slds-listbox_vertical" role="presentation">
+              <template for:each={visibleOptions} for:item="option">
+                <li
+                  key={option.value}
+                  role="presentation"
+                  class="slds-listbox__item"
+                >
+                  <div
+                    id={option.id}
+                    class={option.className}
+                    role="option"
+                    aria-selected={option.ariaSelected}
+                    data-value={option.value}
+                    onmousedown={handleOptionMouseDown}
+                  >
+                    <template lwc:if={picklist}>
+                      <span
+                        class="slds-media__figure slds-listbox__option-icon"
+                      >
+                        <template lwc:if={option.showCheck}>
+                          <lightning-icon
+                            icon-name="utility:check"
+                            size="x-small"
+                            alternative-text="Selected"
+                          ></lightning-icon>
+                        </template>
+                      </span>
+                    </template>
+                    <span class="slds-media__body">
+                      <span class="slds-truncate" title={option.value}
+                        >{option.value}</span
+                      >
+                    </span>
+                  </div>
+                </li>
+              </template>
+              <template lwc:if={hasNoMatches}>
+                <li role="presentation" class="slds-listbox__item">
+                  <div
+                    class="slds-listbox__option slds-listbox__option_plain slds-text-color_weak"
+                    role="presentation"
+                  >
+                    No users found
+                  </div>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

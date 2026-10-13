@@ -1,0 +1,12 @@
+<template>
+  <!-- No slds-grid_align-* here: SLDS uses descendant selectors such as
+         ".slds-grid_align-center .slds-col { flex-grow: 0 }" that would leak
+         into slotted layouts. slds-container_center centres with auto margins. -->
+  <div class="page-container">
+    <div
+      class="page-container__content slds-container_fluid slds-container_center"
+    >
+      <slot></slot>
+    </div>
+  </div>
+</template>

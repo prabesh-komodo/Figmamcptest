@@ -1,0 +1,42 @@
+:host {
+  display: block;
+  min-height: 0;
+
+  /* custom: no SLDS equivalent — Batch Details card width (300px in design) */
+  --c-details-card-width: 18.75rem;
+}
+
+/* The details card runs the full height of the page, as in the design, and grows with the tables. */
+.detail,
+.detail__container {
+  height: 100%;
+}
+
+.detail__layout {
+  min-height: 100%;
+}
+
+/* Lets the tables scroll horizontally instead of widening the row. */
+.detail__main {
+  min-width: 0;
+}
+
+.details-card {
+  min-width: var(--c-details-card-width);
+  max-width: var(--c-details-card-width);
+  border-radius: var(--slds-g-radius-border-4, 1.25rem);
+}
+
+.detail-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.section-title {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+.detail-value {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}

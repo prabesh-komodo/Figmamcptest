@@ -1,0 +1,190 @@
+:host {
+  display: block;
+  /* Fill the parent; the Aura app shell gives it the full viewport height. */
+  height: 100%;
+
+  /* custom: no SLDS equivalent — minimum workspace height from the Figma page frame */
+  --c-explorer-min-height: 40rem;
+  /* custom: no SLDS equivalent — filter panel width (285px in design) */
+  --c-filter-panel-width: 17.8125rem;
+  /* custom: no SLDS equivalent — table selection bar height (48px in design) */
+  --c-selection-bar-height: 3rem;
+  /* custom: no SLDS equivalent — Desert illustration artboard size (300 x 161.837) */
+  --c-illustration-width: 18.75rem;
+  --c-illustration-height: 10.115rem;
+}
+
+/*
+ * Full-height shell: never taller than the viewport, so the workspace below
+ * the header shrinks to fit and the datatable body becomes the scroll area.
+ */
+.explorer {
+  height: 100%;
+  max-height: 100vh;
+  min-height: var(--c-explorer-min-height);
+}
+
+.explorer__header {
+  position: sticky;
+  top: 0;
+  /* custom: no SLDS equivalent — keeps the header above scrolled content */
+  z-index: 2;
+}
+
+/* min-height: 0 lets flex children shrink below their content so inner regions can scroll. */
+.explorer__main,
+.content-region,
+.table-card,
+.table-region,
+.filter-panel__body {
+  min-height: 0;
+}
+
+.explorer__body {
+  height: 100%;
+}
+
+.filter-panel,
+.filter-panel__layout {
+  height: 100%;
+}
+
+.filter-panel {
+  min-width: var(--c-filter-panel-width);
+  max-width: var(--c-filter-panel-width);
+}
+
+/* Lets the datatable scroll horizontally instead of widening the flex row. */
+.content-region {
+  min-width: 0;
+}
+
+.back-label {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+
+.stat-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.stat-card__label,
+.stat-card__value {
+  font-weight: var(--slds-g-font-weight-6, 600);
+}
+
+.stat-card__value {
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+/* Clip the datatable to the card so nothing it renders can paint over the pagination. */
+.table-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.selection-bar {
+  min-height: var(--c-selection-bar-height);
+  max-height: var(--c-selection-bar-height);
+  background-color: var(--slds-g-color-neutral-base-100, #ffffff);
+}
+
+/* Figma "Selection bar / V2 / Active": brand tint while rows are selected. */
+.selection-bar_active {
+  background-color: var(--slds-g-color-brand-base-90, #d6e6ff);
+}
+
+.clear-selection {
+  font-weight: var(--slds-g-font-weight-6, 600);
+}
+
+/* The datatable fills the flexed region; it scrolls its body under a fixed header. */
+.explorer-table {
+  height: 100%;
+}
+
+.pagination__text {
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+.pagination__page {
+  /* custom: no SLDS equivalent — fixed label width (87px in design) so "Page x of y" never shifts the buttons */
+  min-width: 5.4375rem;
+}
+
+.page-size-picker {
+  /* custom: no SLDS equivalent — compact rows-per-page picker (76px in design) */
+  min-width: 4.75rem;
+  max-width: 4.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Desert illustration: layered SVGs positioned exactly as in the Figma
+ * "_Illustration-type / Desert" component. Offsets are percentages of the
+ * artboard; --c-bleed-* lets stroked shapes overflow their layer box.
+ * custom: no SLDS equivalent
+ * ------------------------------------------------------------------------- */
+.illustration {
+  position: relative;
+  overflow: hidden;
+  min-width: var(--c-illustration-width);
+  max-width: var(--c-illustration-width);
+  min-height: var(--c-illustration-height);
+  max-height: var(--c-illustration-height);
+}
+
+.illustration__layer {
+  position: absolute;
+}
+
+.illustration__image {
+  position: absolute;
+  max-width: none;
+  top: var(--c-bleed-y, 0%);
+  left: var(--c-bleed-x, 0%);
+  width: calc(100% - 2 * var(--c-bleed-x, 0%));
+  height: calc(100% - 2 * var(--c-bleed-y, 0%));
+}
+
+.illustration__layer_cloud2 {
+  inset: 50.37% 37.34% 33.49% 38.2%;
+  --c-bleed-x: -2.04%;
+  --c-bleed-y: -5.74%;
+}
+
+.illustration__layer_cloud1 {
+  inset: 28.89% 58.37% 54.97% 17.17%;
+  --c-bleed-x: -2.04%;
+  --c-bleed-y: -5.74%;
+}
+
+.illustration__layer_mountain {
+  inset: 72.38% 0 12.81% 0;
+  --c-bleed-x: -0.5%;
+  --c-bleed-y: -6.26%;
+}
+
+.illustration__layer_plant1-light {
+  inset: 43.83% 65.45% 8.03% 16.09%;
+}
+
+.illustration__layer_plant1-dark {
+  inset: 40.01% 9.43% 8.03% 9.87%;
+  --c-bleed-x: -0.62%;
+  --c-bleed-y: -1.78%;
+}
+
+.illustration__layer_plant2 {
+  inset: 66.91% 16.95% 13.23% 77.9%;
+  --c-bleed-x: -9.71%;
+  --c-bleed-y: -4.67%;
+}
+
+.illustration__layer_sun-light {
+  inset: 8.03% 16.93% 41.42% 55.79%;
+}
+
+.illustration__layer_sun-dark {
+  inset: 24.34% 25.97% 58.06% 64.59%;
+  --c-bleed-x: -5.3%;
+  --c-bleed-y: -5.27%;
+}

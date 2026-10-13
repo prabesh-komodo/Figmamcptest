@@ -1,0 +1,228 @@
+<template>
+  <div class="flow slds-grid slds-grid_vertical">
+    <!-- Completion banner -->
+    <template lwc:if={isComplete}>
+      <div class="slds-shrink-none completion-banner" role="status">
+        <c-page-container>
+          <div
+            class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_x-small"
+          >
+            <div class="slds-grid slds-grid_vertical-align-center">
+              <lightning-icon
+                icon-name="utility:success"
+                variant="success"
+                size="x-small"
+                class="slds-m-right_x-small"
+              ></lightning-icon>
+              <span class="completion-banner__message"
+                >{completionMessage}</span
+              >
+            </div>
+            <span class="slds-text-body_small">Batch ID: {batchId}</span>
+          </div>
+        </c-page-container>
+      </div>
+    </template>
+
+    <!-- Page header: breadcrumb, title, context and stepper -->
+    <div class="slds-shrink-none slds-theme_default slds-border_bottom">
+      <c-page-container>
+        <div
+          class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_small"
+        >
+          <div class="slds-col">
+            <nav aria-label="Breadcrumbs">
+              <ol class="slds-list_horizontal slds-wrap">
+                <li>
+                  <button
+                    type="button"
+                    class="slds-button_reset slds-text-link"
+                    onclick={handleCancel}
+                  >
+                    Requests
+                  </button>
+                </li>
+                <li class="slds-text-color_weak">
+                  <span class="slds-m-horizontal_xx-small" aria-hidden="true"
+                    >›</span
+                  >
+                  <span aria-current="page">Add role</span>
+                </li>
+              </ol>
+            </nav>
+            <h2 class="slds-text-heading_medium slds-m-top_xx-small page-title">
+              Add Role
+            </h2>
+            <dl class="slds-grid slds-wrap slds-m-top_xx-small">
+              <div class="slds-grid slds-m-right_medium">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Role Type:
+                </dt>
+                <dd class="context-value">{roleType}</dd>
+              </div>
+              <div class="slds-grid slds-m-right_medium">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Scope:
+                </dt>
+                <dd class="context-value">{scopeLabel}</dd>
+              </div>
+              <div class="slds-grid">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Users:
+                </dt>
+                <dd class="context-value">{usersLabel}</dd>
+              </div>
+            </dl>
+          </div>
+          <template lwc:if={isReviewStep}>
+            <ol
+              class="slds-grid slds-grid_vertical-align-center slds-shrink-none"
+              aria-label="Progress"
+            >
+              <template for:each={steps} for:item="step">
+                <li
+                  key={step.key}
+                  class="slds-grid slds-grid_vertical-align-center"
+                >
+                  <template lwc:if={step.showConnector}>
+                    <span
+                      class="slds-m-horizontal_x-small stepper__connector"
+                      aria-hidden="true"
+                    ></span>
+                  </template>
+                  <span class={step.markerClass} aria-hidden="true"
+                    >{step.marker}</span
+                  >
+                  <span class={step.labelClass} aria-current={step.ariaCurrent}>
+                    {step.label}<span class="slds-assistive-text"
+                      >{step.assistiveText}</span
+                    >
+                  </span>
+                </li>
+              </template>
+            </ol>
+          </template>
+        </div>
+      </c-page-container>
+    </div>
+
+    <!-- Body: sized to its tables; scrolls when they outgrow the screen -->
+    <div class="slds-scrollable_y flow__body">
+      <c-page-container>
+        <div class="slds-p-around_medium">
+          <h3
+            class="slds-text-heading_small slds-m-bottom_x-small section-title"
+          >
+            {createTitle}
+          </h3>
+          <template lwc:if={hasCreates}>
+            <article class="slds-card slds-scrollable_none flow-card">
+              <c-request-user-role-explorer-datatable
+                key-field="id"
+                data={createRows}
+                columns={createColumns}
+                hide-checkbox-column
+                onlinkcellclick={handleLinkCellClick}
+              ></c-request-user-role-explorer-datatable>
+            </article>
+          </template>
+          <template lwc:else>
+            <p class="slds-text-color_weak">
+              Every selected user already has this role or can't receive it on
+              these requests, so no role records will be created.
+            </p>
+          </template>
+          <template lwc:if={hasSkips}>
+            <h3
+              class="slds-text-heading_small slds-m-top_large slds-m-bottom_x-small section-title"
+            >
+              {skipTitle}
+            </h3>
+            <article class="slds-card slds-scrollable_none flow-card">
+              <c-request-user-role-explorer-datatable
+                key-field="id"
+                data={skipRows}
+                columns={skipColumns}
+                hide-checkbox-column
+                onlinkcellclick={handleLinkCellClick}
+              ></c-request-user-role-explorer-datatable>
+            </article>
+          </template>
+        </div>
+      </c-page-container>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="slds-shrink-none slds-theme_default slds-border_top flow__footer"
+    >
+      <c-page-container>
+        <div
+          class="slds-grid slds-grid_align-center slds-grid_vertical-align-center slds-p-horizontal_medium slds-p-vertical_small"
+        >
+          <template lwc:if={isComplete}>
+            <lightning-button
+              label="Back to Requests List"
+              onclick={handleDone}
+            ></lightning-button>
+          </template>
+          <template lwc:else>
+            <lightning-button
+              label="Back"
+              class="slds-m-right_small"
+              disabled={processing}
+              onclick={handleBack}
+            ></lightning-button>
+            <lightning-button
+              label="Cancel"
+              class="slds-m-right_small"
+              disabled={processing}
+              onclick={handleCancel}
+            ></lightning-button>
+            <lightning-button
+              variant="brand"
+              label={initiateLabel}
+              disabled={isInitiateDisabled}
+              onclick={handleInitiate}
+            ></lightning-button>
+          </template>
+        </div>
+      </c-page-container>
+    </div>
+  </div>
+
+  <!-- Processing: "Adding Roles" -->
+  <template lwc:if={processing}>
+    <section
+      role="dialog"
+      aria-modal="true"
+      aria-label="Adding roles"
+      class="slds-modal slds-fade-in-open"
+    >
+      <div class="slds-modal__container processing-modal__container">
+        <div
+          class="slds-modal__content slds-p-around_medium processing-modal__content"
+        >
+          <div
+            class="slds-box slds-grid slds-grid_vertical slds-grid_align-center slds-grid_vertical-align-center processing-box"
+            role="status"
+          >
+            <div class="slds-is-relative processing-spinner">
+              <lightning-spinner
+                size="medium"
+                variant="brand"
+                alternative-text="Adding roles"
+              ></lightning-spinner>
+            </div>
+            <p
+              class="slds-text-heading_small slds-m-top_medium processing-label"
+            >
+              Adding Roles
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+  </template>
+</template>

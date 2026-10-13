@@ -1,0 +1,23 @@
+<template>
+  <div
+    class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-p-horizontal_x-small"
+  >
+    <template lwc:if={value}>
+      <span class="slds-truncate" title={value}>{value}</span>
+    </template>
+    <template lwc:else>
+      <span class="slds-truncate slds-text-color_weak">{placeholder}</span>
+    </template>
+    <template lwc:if={editable}>
+      <lightning-button-icon
+        icon-name="utility:edit"
+        variant="bare"
+        size="small"
+        alternative-text={editLabel}
+        title={editLabel}
+        class="slds-shrink-none slds-m-left_x-small"
+        onclick={handleEdit}
+      ></lightning-button-icon>
+    </template>
+  </div>
+</template>

@@ -1,0 +1,29 @@
+/*
+ * Figma badge: 4px radius, 12px regular text, teal (active) / grey (inactive).
+ * Rendered as a plain slds-badge span (not lightning-badge) so its height can
+ * be trimmed to keep datatable rows at the design's 36px.
+ */
+.status-badge {
+  /* custom: no SLDS equivalent — compact badge height that keeps rows at 36px */
+  min-height: 1.25rem;
+  max-height: 1.25rem;
+  line-height: 1.25rem;
+  border-radius: var(--slds-g-radius-border-1, 0.25rem);
+  font-weight: var(--slds-g-font-weight-4, 400);
+}
+
+.status-badge_active {
+  background-color: var(--slds-g-color-palette-teal-90, #acf3e4);
+  color: var(--slds-g-color-palette-teal-40, #056764);
+}
+
+.status-badge_inactive {
+  background-color: var(--slds-g-color-palette-neutral-90, #e5e5e5);
+  color: var(--slds-g-color-palette-neutral-40, #5c5c5c);
+}
+
+/* Batch Detail "Skipped": a change a reversal had to leave in place. */
+.status-badge_warning {
+  background-color: var(--slds-g-color-palette-yellow-90, #f9e3b6);
+  color: var(--slds-g-color-palette-orange-30, #5f3e02);
+}

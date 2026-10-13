@@ -1,0 +1,84 @@
+:host {
+  display: block;
+  min-height: 0;
+
+  /* custom: no SLDS equivalent — Bulk Flow (Reverse Batch) design dimensions */
+  --c-processing-modal-width: 62.5rem;
+  --c-processing-box-height: 21rem;
+  --c-processing-spinner-size: 3rem;
+  --c-context-note-max-width: 30rem;
+  /* custom: no SLDS equivalent — this org's theme maps on-success-1 to white, so use the design value */
+  --c-success-text: #056764;
+}
+
+.flow {
+  height: 100%;
+}
+
+/* Body takes only the height its tables need and scrolls once they outgrow the screen. */
+.flow__body {
+  min-height: 0;
+}
+
+.flow__footer {
+  /* custom: no SLDS equivalent — "box-shadow/2 - up" from the Bulk Flow footer */
+  box-shadow: 0 -2.8px 2.9px rgba(0, 0, 0, 0.09);
+}
+
+.page-title,
+.section-title {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+.context-value {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+
+/* Long notes truncate in the header; the full text is in the tooltip. */
+.context-note {
+  max-width: var(--c-context-note-max-width);
+}
+
+/* ------------------------------------------------------------------ tables */
+
+.flow-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+/* --------------------------------------------------------------- completion */
+
+.completion-banner {
+  background-color: var(--slds-g-color-palette-teal-90, #acf3e4);
+}
+
+.completion-banner__message {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-palette-teal-40, var(--c-success-text));
+}
+
+/* --------------------------------------------------------------- processing */
+
+.processing-modal__container {
+  max-width: var(--c-processing-modal-width);
+}
+
+.processing-modal__content {
+  border-radius: var(--slds-g-radius-border-4, 1.25rem);
+}
+
+.processing-box {
+  min-height: var(--c-processing-box-height);
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.processing-spinner {
+  min-width: var(--c-processing-spinner-size);
+  min-height: var(--c-processing-spinner-size);
+}
+
+.processing-label {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}

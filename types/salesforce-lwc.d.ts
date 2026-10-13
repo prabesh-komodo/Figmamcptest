@@ -22,6 +22,16 @@ declare module 'lwc' {
     ): void;
 }
 
+declare module '*.html' {
+    const template: unknown;
+    export default template;
+}
+
+declare module 'lightning/datatable' {
+    import { LightningElement } from 'lwc';
+    export default class LightningDatatable extends LightningElement {}
+}
+
 declare module 'lightning/modal' {
     import { LightningElement } from 'lwc';
     export default class LightningModal extends LightningElement {
@@ -76,7 +86,17 @@ declare module 'c/multiStepFormModal' {
     export default MultiStepFormModal;
 }
 
+declare module '@salesforce/i18n/locale' {
+    const locale: string;
+    export default locale;
+}
+
 declare module '@salesforce/resourceUrl/d3' {
+    const resourceUrl: string;
+    export default resourceUrl;
+}
+
+declare module '@salesforce/resourceUrl/requestUserRoleIllustration' {
     const resourceUrl: string;
     export default resourceUrl;
 }

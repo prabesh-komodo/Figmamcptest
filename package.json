@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "deploy": "node scripts/build.js && sf project deploy start --source-dir force-app",
-    "lint": "eslint **/{aura,lwc}/**/*.js",
+    "lint": "eslint --no-error-on-unmatched-pattern **/{aura,lwc}/**/*.js",
     "test": "npm run test:unit",
     "test:unit": "sfdx-lwc-jest",
     "test:unit:watch": "sfdx-lwc-jest --watch",

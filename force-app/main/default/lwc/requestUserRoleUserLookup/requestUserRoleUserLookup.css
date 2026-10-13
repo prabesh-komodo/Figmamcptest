@@ -1,0 +1,21 @@
+:host {
+  display: block;
+}
+
+/*
+ * Fixed to the viewport (placed from the input's rectangle in JS) so a
+ * clipping or scrolling ancestor, such as a one-row table card, can't cut
+ * the option list off.
+ */
+.lookup-dropdown {
+  position: fixed;
+  top: var(--c-dropdown-top, 0);
+  left: var(--c-dropdown-left, 0);
+  min-width: var(--c-dropdown-width, 15rem);
+  max-width: var(--c-dropdown-width, 15rem);
+}
+
+/* The read-only picklist input opens a list, so it gets the pointer cursor like a button. */
+.picklist-input {
+  cursor: pointer;
+}

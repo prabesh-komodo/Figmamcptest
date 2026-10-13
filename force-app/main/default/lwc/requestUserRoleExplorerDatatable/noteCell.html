@@ -1,0 +1,18 @@
+<template>
+  <template lwc:if={typeAttributes.iconName}>
+    <span class="slds-grid slds-grid_vertical-align-center" title={value}>
+      <lightning-icon
+        icon-name={typeAttributes.iconName}
+        variant={typeAttributes.iconVariant}
+        size="x-small"
+        class="slds-m-right_x-small slds-shrink-none"
+      ></lightning-icon>
+      <span class="slds-truncate">
+        <span class={typeAttributes.textClass}>{value}</span>
+      </span>
+    </span>
+  </template>
+  <template lwc:else>
+    <span class="slds-truncate" title={value}>{value}</span>
+  </template>
+</template>

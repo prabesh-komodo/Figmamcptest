@@ -1,0 +1,392 @@
+<template>
+  <div class="flow slds-grid slds-grid_vertical">
+    <!-- Completion banner -->
+    <template lwc:if={isComplete}>
+      <div class="slds-shrink-none completion-banner" role="status">
+        <c-page-container>
+          <div
+            class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_x-small"
+          >
+            <div class="slds-grid slds-grid_vertical-align-center">
+              <lightning-icon
+                icon-name="utility:success"
+                variant="success"
+                size="x-small"
+                class="slds-m-right_x-small"
+              ></lightning-icon>
+              <span class="completion-banner__message"
+                >Replacement completed.</span
+              >
+            </div>
+            <span class="slds-text-body_small">Batch ID: {batchId}</span>
+          </div>
+        </c-page-container>
+      </div>
+    </template>
+
+    <!-- Page header: breadcrumb, title, context and stepper -->
+    <div class="slds-shrink-none slds-theme_default slds-border_bottom">
+      <c-page-container>
+        <div
+          class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-p-horizontal_medium slds-p-vertical_small"
+        >
+          <div class="slds-col">
+            <nav aria-label="Breadcrumbs">
+              <ol class="slds-list_horizontal slds-wrap">
+                <li>
+                  <button
+                    type="button"
+                    class="slds-button_reset slds-text-link"
+                    onclick={handleCancel}
+                  >
+                    Request User Roles
+                  </button>
+                </li>
+                <li class="slds-text-color_weak">
+                  <span class="slds-m-horizontal_xx-small" aria-hidden="true"
+                    >›</span
+                  >
+                  <span aria-current="page">Replace user</span>
+                </li>
+              </ol>
+            </nav>
+            <h2 class="slds-text-heading_medium slds-m-top_xx-small page-title">
+              Replace User
+            </h2>
+            <dl class="slds-grid slds-wrap slds-m-top_xx-small">
+              <div class="slds-grid slds-m-right_medium">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Current User:
+                </dt>
+                <dd class="context-value">{currentUser}</dd>
+              </div>
+              <div class="slds-grid slds-m-right_medium">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Scope:
+                </dt>
+                <dd class="context-value">{scopeLabel}</dd>
+              </div>
+              <div class="slds-grid slds-m-right_medium">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Replacement Reason:
+                </dt>
+                <dd class="context-value">{reason}</dd>
+              </div>
+              <template lwc:if={note}>
+                <div class="slds-grid">
+                  <dt class="slds-text-color_weak slds-m-right_xx-small">
+                    Note:
+                  </dt>
+                  <dd
+                    class="slds-truncate context-value context-note"
+                    title={note}
+                  >
+                    {note}
+                  </dd>
+                </div>
+              </template>
+            </dl>
+          </div>
+          <template lwc:if={showStepper}>
+            <ol
+              class="slds-grid slds-grid_vertical-align-center slds-shrink-none"
+              aria-label="Progress"
+            >
+              <template for:each={steps} for:item="step">
+                <li
+                  key={step.key}
+                  class="slds-grid slds-grid_vertical-align-center"
+                >
+                  <template lwc:if={step.showConnector}>
+                    <span
+                      class="slds-m-horizontal_x-small stepper__connector"
+                      aria-hidden="true"
+                    ></span>
+                  </template>
+                  <span class={step.markerClass} aria-hidden="true"
+                    >{step.marker}</span
+                  >
+                  <span class={step.labelClass} aria-current={step.ariaCurrent}>
+                    {step.label}<span class="slds-assistive-text"
+                      >{step.assistiveText}</span
+                    >
+                  </span>
+                </li>
+              </template>
+            </ol>
+          </template>
+        </div>
+      </c-page-container>
+    </div>
+
+    <!-- Body: sized to its tables; scrolls when they outgrow the screen -->
+    <div class="slds-scrollable_y flow__body">
+      <c-page-container>
+        <div class="slds-p-around_medium">
+          <!-- Step 1: Assign users -->
+          <template lwc:if={isAssignStep}>
+            <article class="slds-card slds-scrollable_none flow-card">
+              <div
+                class="slds-grid slds-grid_vertical-align-center slds-border_bottom slds-p-horizontal_small selection-bar selection-bar_active"
+                aria-live="polite"
+              >
+                <span class="slds-text-title_bold slds-p-right_small"
+                  >{selectedRoleLabel}</span
+                >
+                <div
+                  class="slds-grid slds-grid_vertical-align-center slds-border_left slds-p-left_small"
+                >
+                  <span class="slds-text-title_bold slds-m-right_x-small"
+                    >Replace with</span
+                  >
+                  <c-request-user-role-user-lookup
+                    label="Replace with"
+                    options={replacementUsers}
+                    value={bulkUser}
+                    class="slds-m-right_small bulk-lookup"
+                    onchange={handleBulkUserChange}
+                  ></c-request-user-role-user-lookup>
+                  <lightning-button
+                    variant="brand"
+                    label="Assign"
+                    disabled={isAssignDisabled}
+                    onclick={handleAssign}
+                  ></lightning-button>
+                </div>
+                <div
+                  class="slds-border_left slds-p-left_small slds-m-left_small"
+                >
+                  <button
+                    type="button"
+                    class="slds-button_reset slds-text-link slds-text-body_small clear-selection"
+                    onclick={handleClearRoleSelection}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              </div>
+              <c-request-user-role-explorer-datatable
+                key-field="id"
+                data={roleRows}
+                columns={roleColumns}
+                selected-rows={selectedRoleIds}
+                onrowselection={handleRoleSelection}
+                oncelledit={handleCellEdit}
+                onlinkcellclick={handleLinkCellClick}
+              ></c-request-user-role-explorer-datatable>
+            </article>
+          </template>
+
+          <!-- Step 2: Resolve activities -->
+          <template lwc:if={isActivitiesStep}>
+            <article class="slds-card slds-scrollable_none flow-card">
+              <div class={activityBarClass} aria-live="polite">
+                <template lwc:if={hasActivitySelection}>
+                  <span class="slds-text-title_bold slds-p-right_small">
+                    {selectedActivityLabel}
+                  </span>
+                  <div
+                    class="slds-grid slds-grid_vertical-align-center slds-border_left slds-p-left_small"
+                  >
+                    <span class="slds-text-title_bold slds-m-right_x-small"
+                      >Select Action</span
+                    >
+                    <c-request-user-role-user-lookup
+                      picklist
+                      label="Select Action"
+                      placeholder="Select Action..."
+                      options={actionLabels}
+                      value={bulkActionLabel}
+                      class="slds-m-right_small bulk-lookup"
+                      onchange={handleBulkActionChange}
+                    ></c-request-user-role-user-lookup>
+                    <lightning-button
+                      variant="brand"
+                      label="Apply"
+                      disabled={isApplyDisabled}
+                      onclick={handleApplyAction}
+                    ></lightning-button>
+                  </div>
+                  <div
+                    class="slds-border_left slds-p-left_small slds-m-left_small"
+                  >
+                    <button
+                      type="button"
+                      class="slds-button_reset slds-text-link slds-text-body_small clear-selection"
+                      onclick={handleClearActivitySelection}
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </template>
+                <template lwc:else>
+                  <h2 class="slds-text-title_bold">Pending Activities</h2>
+                </template>
+              </div>
+              <c-request-user-role-explorer-datatable
+                key-field="id"
+                data={activityRows}
+                columns={activityColumns}
+                selected-rows={selectedActivityIds}
+                onrowselection={handleActivitySelection}
+                oncelledit={handleCellEdit}
+                onlinkcellclick={handleLinkCellClick}
+              ></c-request-user-role-explorer-datatable>
+            </article>
+          </template>
+
+          <!-- Step 3 (review) and completion summary -->
+          <template lwc:if={isSummary}>
+            <h3
+              class="slds-text-heading_small slds-m-bottom_x-small section-title"
+            >
+              {rolesTitle}
+            </h3>
+            <article class="slds-card slds-scrollable_none flow-card">
+              <c-request-user-role-explorer-datatable
+                key-field="id"
+                data={roleRows}
+                columns={roleColumns}
+                hide-checkbox-column
+                onlinkcellclick={handleLinkCellClick}
+              ></c-request-user-role-explorer-datatable>
+            </article>
+            <template lwc:if={hasActivities}>
+              <h3
+                class="slds-text-heading_small slds-m-top_large slds-m-bottom_x-small section-title"
+              >
+                {activitiesTitle}
+              </h3>
+              <article class="slds-card slds-scrollable_none flow-card">
+                <c-request-user-role-explorer-datatable
+                  key-field="id"
+                  data={activityRows}
+                  columns={activityColumns}
+                  hide-checkbox-column
+                  onlinkcellclick={handleLinkCellClick}
+                ></c-request-user-role-explorer-datatable>
+              </article>
+            </template>
+          </template>
+        </div>
+      </c-page-container>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="slds-shrink-none slds-theme_default slds-border_top flow__footer"
+    >
+      <c-page-container>
+        <div
+          class="slds-grid slds-grid_align-center slds-grid_vertical-align-center slds-p-horizontal_medium slds-p-vertical_small"
+        >
+          <template lwc:if={showBackButton}>
+            <lightning-button
+              label="Back"
+              class="slds-m-right_small"
+              onclick={handleBack}
+            ></lightning-button>
+          </template>
+          <div>
+            <template lwc:if={isComplete}>
+              <lightning-button
+                label="Back to Request User Roles"
+                onclick={handleDone}
+              ></lightning-button>
+            </template>
+            <template lwc:else>
+              <lightning-button
+                label="Cancel"
+                class="slds-m-right_small"
+                onclick={handleCancel}
+              ></lightning-button>
+              <template lwc:if={isAssignStep}>
+                <lightning-button
+                  variant="brand"
+                  label={assignNextLabel}
+                  disabled={isAssignNextDisabled}
+                  onclick={handleNextFromAssign}
+                ></lightning-button>
+              </template>
+              <template lwc:if={isActivitiesStep}>
+                <lightning-button
+                  variant="brand"
+                  label="Next: Review"
+                  disabled={isActivitiesNextDisabled}
+                  onclick={handleNextFromActivities}
+                ></lightning-button>
+              </template>
+              <template lwc:if={isReviewStep}>
+                <lightning-button
+                  variant="brand"
+                  label="Initiate Replacement"
+                  disabled={processing}
+                  onclick={handleInitiate}
+                ></lightning-button>
+              </template>
+            </template>
+          </div>
+        </div>
+      </c-page-container>
+    </div>
+  </div>
+
+  <!-- Single-row editor for Replace With / Action cells -->
+  <template lwc:if={editor}>
+    <div class="cell-editor__backdrop" onclick={handleEditorDismiss}></div>
+    <section
+      class="slds-popover slds-popover_edit cell-editor"
+      role="dialog"
+      aria-label={editor.label}
+      onkeydown={handleEditorKeyDown}
+    >
+      <div class="slds-popover__body slds-p-around_xx-small">
+        <lightning-combobox
+          name="cell-editor"
+          label={editor.label}
+          variant="label-hidden"
+          placeholder={editor.placeholder}
+          options={editor.options}
+          value={editor.value}
+          dropdown-alignment="auto"
+          onchange={handleEditorChange}
+        ></lightning-combobox>
+      </div>
+    </section>
+  </template>
+
+  <!-- Processing: "Replacing Records" -->
+  <template lwc:if={processing}>
+    <section
+      role="dialog"
+      aria-modal="true"
+      aria-label="Replacing records"
+      class="slds-modal slds-fade-in-open processing-modal"
+    >
+      <div class="slds-modal__container processing-modal__container">
+        <div
+          class="slds-modal__content slds-p-around_medium processing-modal__content"
+        >
+          <div
+            class="slds-box slds-grid slds-grid_vertical slds-grid_align-center slds-grid_vertical-align-center processing-box"
+            role="status"
+          >
+            <div class="slds-is-relative processing-spinner">
+              <lightning-spinner
+                size="medium"
+                variant="brand"
+                alternative-text="Replacing records"
+              ></lightning-spinner>
+            </div>
+            <p
+              class="slds-text-heading_small slds-m-top_medium processing-label"
+            >
+              Replacing Records
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+  </template>
+</template>

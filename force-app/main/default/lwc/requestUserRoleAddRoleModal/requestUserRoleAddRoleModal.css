@@ -1,0 +1,17 @@
+:host {
+  /* custom: no SLDS equivalent — modal width from the Figma "Add Role" modal (533px) */
+  --c-add-role-modal-width: 33.3125rem;
+}
+
+.add-role-modal__container {
+  max-width: var(--c-add-role-modal-width);
+}
+
+.context-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.context-card__value {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}

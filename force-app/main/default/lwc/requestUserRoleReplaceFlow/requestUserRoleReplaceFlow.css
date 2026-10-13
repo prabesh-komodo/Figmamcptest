@@ -1,0 +1,174 @@
+:host {
+  display: block;
+  min-height: 0;
+
+  /* custom: no SLDS equivalent — Bulk Flow design dimensions */
+  --c-selection-bar-height: 3rem;
+  --c-bulk-lookup-width: 15rem;
+  --c-step-marker-size: 1.375rem;
+  --c-step-connector-width: 1.5rem;
+  --c-processing-modal-width: 62.5rem;
+  --c-processing-box-height: 21rem;
+  --c-processing-spinner-size: 3rem;
+  --c-context-note-max-width: 30rem;
+  /* custom: no SLDS equivalent — this org's theme maps on-success-1 to white, so use the design value */
+  --c-success-text: #056764;
+}
+
+.flow {
+  height: 100%;
+}
+
+/* Body takes only the height its tables need and scrolls once they outgrow the screen. */
+.flow__body {
+  min-height: 0;
+}
+
+.flow__footer {
+  /* custom: no SLDS equivalent — "box-shadow/2 - up" from the Bulk Flow footer */
+  box-shadow: 0 -2.8px 2.9px rgba(0, 0, 0, 0.09);
+}
+
+.page-title,
+.section-title {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+.context-value {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+
+/* Long notes truncate in the header; the full text is in the tooltip. */
+.context-note {
+  max-width: var(--c-context-note-max-width);
+}
+
+/* ---------------------------------------------------------------- stepper */
+
+.stepper__marker {
+  min-width: var(--c-step-marker-size);
+  min-height: var(--c-step-marker-size);
+  max-height: var(--c-step-marker-size);
+  border-radius: var(--slds-g-radius-border-circle, 50%);
+  font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+  font-weight: var(--slds-g-font-weight-6, 600);
+}
+
+.stepper__marker_active {
+  background-color: var(--slds-g-color-accent-container-1, #066afe);
+  color: var(--slds-g-color-on-accent-1, #ffffff);
+}
+
+.stepper__marker_completed {
+  background-color: var(--slds-g-color-on-surface-1, #5c5c5c);
+  color: var(--slds-g-color-on-surface-inverse-1, #ffffff);
+}
+
+.stepper__marker_upcoming {
+  box-shadow: inset 0 0 0 1px var(--slds-g-color-border-1, #c9c9c9);
+  color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.stepper__label_active {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+.stepper__label_completed {
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+
+.stepper__label_upcoming {
+  color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.stepper__connector {
+  min-width: var(--c-step-connector-width);
+  min-height: var(--slds-g-sizing-border-1, 1px);
+  background-color: var(--slds-g-color-border-1, #c9c9c9);
+}
+
+/* ------------------------------------------------------------------ tables */
+
+.flow-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+/* Same height in both states so showing the selection bar never shifts the table. */
+.selection-bar {
+  min-height: var(--c-selection-bar-height);
+  max-height: var(--c-selection-bar-height);
+  background-color: var(--slds-g-color-neutral-base-100, #ffffff);
+}
+
+.selection-bar_active {
+  background-color: var(--slds-g-color-brand-base-90, #d6e6ff);
+}
+
+.bulk-lookup {
+  min-width: var(--c-bulk-lookup-width);
+  max-width: var(--c-bulk-lookup-width);
+}
+
+.clear-selection {
+  font-weight: var(--slds-g-font-weight-6, 600);
+}
+
+/* --------------------------------------------------------------- completion */
+
+.completion-banner {
+  background-color: var(--slds-g-color-palette-teal-90, #acf3e4);
+}
+
+.completion-banner__message {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-palette-teal-40, var(--c-success-text));
+}
+
+/* --------------------------------------------------------------- processing */
+
+.processing-modal__container {
+  max-width: var(--c-processing-modal-width);
+}
+
+.processing-modal__content {
+  border-radius: var(--slds-g-radius-border-4, 1.25rem);
+}
+
+.processing-box {
+  min-height: var(--c-processing-box-height);
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.processing-spinner {
+  min-width: var(--c-processing-spinner-size);
+  min-height: var(--c-processing-spinner-size);
+}
+
+.processing-label {
+  font-weight: var(--slds-g-font-weight-6, 600);
+  color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+
+/* -------------------------------------------------------------- cell editor */
+
+/* Transparent layer that closes the editor when the user clicks anywhere else. */
+.cell-editor__backdrop {
+  position: fixed;
+  inset: 0;
+  /* custom: no SLDS equivalent — above the page, below the editor popover */
+  z-index: 8000;
+}
+
+/* Positioned over the edited cell; the variables are set from the cell's rectangle. */
+.cell-editor {
+  position: fixed;
+  top: var(--c-editor-top, 0);
+  left: var(--c-editor-left, 0);
+  /* At least wide enough for full user names, even over a narrow cell. */
+  min-width: max(var(--c-editor-width, 15rem), 15rem);
+  /* custom: no SLDS equivalent — above the editor backdrop */
+  z-index: 8001;
+}

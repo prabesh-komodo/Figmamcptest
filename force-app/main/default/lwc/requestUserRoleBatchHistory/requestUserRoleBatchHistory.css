@@ -1,0 +1,27 @@
+:host {
+  display: block;
+  min-height: 0;
+}
+
+.history {
+  height: 100%;
+}
+
+.history-card {
+  border-radius: var(--slds-g-radius-border-3, 0.75rem);
+}
+
+.pagination__text {
+  color: var(--slds-g-color-on-surface-3, #03234d);
+}
+
+.pagination__page {
+  /* custom: no SLDS equivalent — fixed label width (87px in design) so "Page x of y" never shifts the buttons */
+  min-width: 5.4375rem;
+}
+
+.page-size-picker {
+  /* custom: no SLDS equivalent — compact rows-per-page picker (76px in design) */
+  min-width: 4.75rem;
+  max-width: 4.75rem;
+}

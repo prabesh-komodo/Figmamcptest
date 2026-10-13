@@ -1,0 +1,539 @@
+<template>
+  <div class="explorer slds-grid slds-grid_vertical">
+    <!-- Sticky header: builder header + toolbar -->
+    <div class="explorer__header slds-shrink-none">
+      <header class="slds-builder-header">
+        <div class="slds-builder-header__item slds-p-horizontal_medium">
+          <lightning-button-icon
+            icon-name="utility:close"
+            variant="bare-inverse"
+            alternative-text="Close"
+            title="Close"
+            onclick={handleClose}
+          ></lightning-button-icon>
+        </div>
+        <div class="slds-builder-header__item">
+          <div
+            class="slds-builder-header__item-label slds-media slds-media_center"
+          >
+            <div class="slds-media__figure">
+              <lightning-icon
+                icon-name="utility:key"
+                size="x-small"
+                variant="inverse"
+              ></lightning-icon>
+            </div>
+            <h1 class="slds-media__body slds-truncate" title={headerTitle}>
+              {headerTitle}
+            </h1>
+          </div>
+        </div>
+        <div class="slds-builder-header__item slds-builder-header__utilities">
+          <div class="slds-builder-header__utilities-item">
+            <button
+              type="button"
+              class="slds-button_reset slds-builder-header__item-action slds-media slds-media_center"
+              onclick={handleBatchHistory}
+            >
+              <span class="slds-media__figure">
+                <lightning-icon
+                  icon-name="utility:real_time"
+                  size="x-small"
+                  variant="inverse"
+                ></lightning-icon>
+              </span>
+              <span class="slds-media__body">Batch History</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div
+        class="slds-builder-toolbar slds-p-horizontal_none"
+        role="toolbar"
+        aria-label={toolbarLabel}
+      >
+        <c-page-container class="slds-col">
+          <div class="slds-p-horizontal_medium">
+            <template lwc:if={showBackBar}>
+              <div
+                class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread"
+              >
+                <div class="slds-grid slds-grid_vertical-align-center">
+                  <lightning-button-icon
+                    icon-name="utility:back"
+                    variant="border"
+                    alternative-text={flowBackAssistiveText}
+                    title={flowBackAssistiveText}
+                    disabled={isProcessing}
+                    class="slds-m-right_small"
+                    onclick={handleToolbarBack}
+                  ></lightning-button-icon>
+                  <span class="slds-text-heading_small back-label">
+                    {flowBackLabel}
+                  </span>
+                </div>
+                <template lwc:if={showBatchActions}>
+                  <div class="slds-grid slds-grid_vertical-align-center">
+                    <lightning-button
+                      label="Export"
+                      onclick={handleBatchExport}
+                    ></lightning-button>
+                    <template lwc:if={showReverseBatch}>
+                      <lightning-button
+                        variant="brand"
+                        label="Reverse Batch"
+                        disabled={isReverseBatchDisabled}
+                        class="slds-m-left_x-small"
+                        onclick={handleReverseBatch}
+                      ></lightning-button>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <template lwc:else>
+              <div
+                class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread"
+              >
+                <div class="slds-grid slds-grid_vertical-align-center">
+                  <lightning-button-icon-stateful
+                    icon-name="utility:filterList"
+                    selected={isFilterPanelOpen}
+                    alternative-text="Show filters"
+                    title="Filters"
+                    class="slds-m-right_xx-small"
+                    onclick={handleFilterPanelToggle}
+                  ></lightning-button-icon-stateful>
+                  <lightning-button-group>
+                    <template for:each={viewButtons} for:item="view">
+                      <lightning-button
+                        key={view.value}
+                        label={view.label}
+                        variant={view.variant}
+                        data-view={view.value}
+                        onclick={handleViewSelect}
+                      ></lightning-button>
+                    </template>
+                  </lightning-button-group>
+                </div>
+                <lightning-button
+                  label="Export"
+                  disabled={isExportDisabled}
+                  onclick={handleExport}
+                ></lightning-button>
+              </div>
+            </template>
+          </div>
+        </c-page-container>
+      </div>
+    </div>
+
+    <!-- Replace User / De-activate Role(s) flows replace the workspace while open -->
+    <template lwc:if={isReplaceFlow}>
+      <c-request-user-role-replace-flow
+        class="slds-col slds-theme_shade explorer__main"
+        current-user={flowContext.currentUser}
+        reason={flowContext.reason}
+        note={flowContext.note}
+        roles={flowContext.roles}
+        activities={flowContext.activities}
+        users={userOptions}
+        processing={isProcessing}
+        batch-id={flowBatchId}
+        effective-date={flowEffectiveDate}
+        oninitiate={handleFlowInitiate}
+        oncancel={handleFlowExit}
+        ondone={handleFlowExit}
+        onrequestselect={handleFlowRequestSelect}
+        onprogramselect={handleFlowProgramSelect}
+      ></c-request-user-role-replace-flow>
+    </template>
+    <template lwc:elseif={isDeactivateFlow}>
+      <c-request-user-role-deactivate-flow
+        class="slds-col slds-theme_shade explorer__main"
+        current-user={flowContext.currentUser}
+        reason={flowContext.reason}
+        note={flowContext.note}
+        roles={flowContext.roles}
+        activities={flowContext.activities}
+        users={userOptions}
+        processing={isProcessing}
+        batch-id={flowBatchId}
+        effective-date={flowEffectiveDate}
+        oninitiate={handleDeactivateInitiate}
+        onback={handleFlowBack}
+        oncancel={handleFlowExit}
+        ondone={handleFlowExit}
+        onrequestselect={handleFlowRequestSelect}
+        onprogramselect={handleFlowProgramSelect}
+      ></c-request-user-role-deactivate-flow>
+    </template>
+    <template lwc:elseif={isAddRoleFlow}>
+      <c-request-user-role-add-role-flow
+        class="slds-col slds-theme_shade explorer__main"
+        role-type={addRoleContext.roleType}
+        users={addRoleContext.users}
+        scope-label={addRoleContext.scopeLabel}
+        entries={addRoleContext.entries}
+        processing={isProcessing}
+        batch-id={flowBatchId}
+        oninitiate={handleAddRoleInitiate}
+        onback={handleAddRoleBack}
+        oncancel={handleFlowExit}
+        ondone={handleFlowExit}
+        onrequestselect={handleFlowRequestSelect}
+        onprogramselect={handleFlowProgramSelect}
+      ></c-request-user-role-add-role-flow>
+    </template>
+    <template lwc:elseif={isReversalFlow}>
+      <c-request-user-role-reversal-flow
+        class="slds-col slds-theme_shade explorer__main"
+        batch-id={reversalContext.batchId}
+        operation={reversalOperationTitle}
+        reason={reversalContext.reason}
+        note={reversalContext.note}
+        entries={reversalContext.entries}
+        processing={isProcessing}
+        reversal-batch-id={flowBatchId}
+        oninitiate={handleReversalInitiate}
+        onback={handleReversalBack}
+        onhistory={handleReversalHistory}
+        oncancel={handleReversalExit}
+        ondone={handleReversalExit}
+        onrequestselect={handleFlowRequestSelect}
+        onprogramselect={handleFlowProgramSelect}
+      ></c-request-user-role-reversal-flow>
+    </template>
+    <template lwc:elseif={isBatchHistoryPage}>
+      <c-request-user-role-batch-history
+        class="slds-col slds-theme_shade explorer__main"
+        batches={batchRecords}
+        onbatchselect={handleBatchSelect}
+      ></c-request-user-role-batch-history>
+    </template>
+    <template lwc:elseif={isBatchDetailPage}>
+      <c-request-user-role-batch-detail
+        class="slds-col slds-theme_shade explorer__main"
+        batch={selectedBatch}
+        onrequestselect={handleFlowRequestSelect}
+        onprogramselect={handleFlowProgramSelect}
+      ></c-request-user-role-batch-detail>
+    </template>
+    <c-page-container lwc:else class="slds-col slds-theme_shade explorer__main">
+      <!-- Workspace: fills the remaining height; only the table body scrolls -->
+      <div class="slds-grid explorer__body">
+        <!-- Filter panel (full height, scrolls its own body) -->
+        <template lwc:if={isFilterPanelOpen}>
+          <aside
+            class="slds-panel slds-panel_docked slds-panel_docked-left slds-is-open slds-shrink-none filter-panel"
+            aria-label="Filters"
+          >
+            <!-- .slds-panel_docked.slds-is-open forces display:block on the aside, so the
+                             header/body column layout lives on this wrapper instead. -->
+            <div class="slds-grid slds-grid_vertical filter-panel__layout">
+              <div class="slds-panel__header slds-shrink-none">
+                <h2
+                  class="slds-panel__header-title slds-text-heading_medium slds-truncate"
+                  title="Filters"
+                >
+                  Filters
+                </h2>
+                <div class="slds-panel__header-actions">
+                  <lightning-button-icon
+                    icon-name="utility:close"
+                    variant="bare"
+                    alternative-text="Close filters"
+                    title="Close filters"
+                    onclick={handleFilterPanelClose}
+                  ></lightning-button-icon>
+                </div>
+              </div>
+              <div
+                class="slds-panel__body slds-col slds-scrollable_y filter-panel__body"
+              >
+                <template lwc:if={searchFilter}>
+                  <lightning-input
+                    type="search"
+                    name="filter-search"
+                    label={searchFilter.label}
+                    placeholder={searchFilter.placeholder}
+                    value={searchTerm}
+                    class="slds-show slds-m-bottom_small"
+                    onchange={handleSearchChange}
+                  ></lightning-input>
+                </template>
+                <template for:each={filters} for:item="filter">
+                  <div key={filter.key} class="slds-m-bottom_small">
+                    <lightning-combobox
+                      name={filter.name}
+                      label={filter.label}
+                      placeholder="Select..."
+                      options={filter.options}
+                      disabled={filter.isDisabled}
+                      data-key={filter.key}
+                      onchange={handleFilterChange}
+                    ></lightning-combobox>
+                    <template lwc:if={filter.hasPills}>
+                      <lightning-pill-container
+                        items={filter.pills}
+                        variant="bare"
+                        label={filter.label}
+                        data-key={filter.key}
+                        class="slds-m-top_xx-small"
+                        onitemremove={handlePillRemove}
+                      ></lightning-pill-container>
+                    </template>
+                  </div>
+                </template>
+                <template lwc:if={hasActiveFilters}>
+                  <div
+                    class="slds-grid slds-grid_align-end slds-border_top slds-p-top_xx-small"
+                  >
+                    <lightning-button
+                      variant="base"
+                      label="Clear Filter"
+                      icon-name="utility:refresh"
+                      onclick={handleClearFilters}
+                    ></lightning-button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </aside>
+        </template>
+
+        <!-- Content -->
+        <section
+          class="slds-col slds-grid slds-grid_vertical slds-p-around_medium content-region"
+          aria-label={regionLabel}
+        >
+          <template lwc:if={hasFilteredRecords}>
+            <ul
+              class="slds-grid slds-wrap slds-gutters_x-small slds-shrink-none"
+              aria-label="Summary"
+            >
+              <template for:each={stats} for:item="stat">
+                <li
+                  key={stat.key}
+                  class="slds-col slds-size_1-of-2 slds-large-size_1-of-4 slds-m-bottom_small"
+                >
+                  <div
+                    class="slds-box slds-box_small slds-theme_default stat-card"
+                  >
+                    <p
+                      class="slds-text-title slds-text-color_weak slds-truncate stat-card__label"
+                      title={stat.label}
+                    >
+                      {stat.label}
+                    </p>
+                    <p
+                      class="slds-text-heading_small slds-m-top_xx-small stat-card__value"
+                    >
+                      {stat.value}
+                    </p>
+                  </div>
+                </li>
+              </template>
+            </ul>
+
+            <article
+              class="slds-card slds-grid slds-grid_vertical slds-scrollable_none slds-m-bottom_small table-card"
+            >
+              <!-- One fixed-height bar for both states so selecting rows never shifts the table -->
+              <div class={selectionBarClass} aria-live="polite">
+                <template lwc:if={hasSelection}>
+                  <h2 class="slds-text-title_bold slds-p-right_x-small">
+                    {selectionLabel}
+                  </h2>
+                  <div class="slds-border_left slds-p-left_x-small">
+                    <button
+                      type="button"
+                      class="slds-button_reset slds-text-link slds-text-body_small clear-selection"
+                      onclick={handleClearSelection}
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                  <div class="slds-col_bump-left">
+                    <template for:each={selectionActions} for:item="action">
+                      <lightning-button
+                        key={action.eventName}
+                        label={action.label}
+                        variant={action.variant}
+                        data-event={action.eventName}
+                        class="slds-m-left_x-small"
+                        onclick={handleSelectionAction}
+                      ></lightning-button>
+                    </template>
+                  </div>
+                </template>
+                <template lwc:else>
+                  <h2 class="slds-text-title_bold">{tableTitle}</h2>
+                </template>
+              </div>
+              <div class="slds-col table-region">
+                <c-request-user-role-explorer-datatable
+                  class="slds-show explorer-table"
+                  key-field="id"
+                  data={pagedRows}
+                  columns={columns}
+                  selected-rows={selectedIds}
+                  sorted-by={sortedBy}
+                  sorted-direction={sortDirection}
+                  onrowselection={handleRowSelection}
+                  onsort={handleSort}
+                  onlinkcellclick={handleLinkCellClick}
+                ></c-request-user-role-explorer-datatable>
+              </div>
+            </article>
+
+            <!-- Pagination -->
+            <nav
+              class="slds-grid slds-grid_vertical-align-center slds-shrink-none slds-border_top slds-p-top_x-small pagination"
+              aria-label="Pagination"
+            >
+              <span
+                class="slds-text-body_small slds-text-color_weak slds-m-right_small"
+              >
+                Rows per page:
+              </span>
+              <lightning-combobox
+                name="page-size"
+                label="Rows per page"
+                variant="label-hidden"
+                dropdown-alignment="bottom-left"
+                options={pageSizeOptions}
+                value={pageSizeValue}
+                class="slds-m-right_small page-size-picker"
+                onchange={handlePageSizeChange}
+              ></lightning-combobox>
+              <span
+                class="slds-text-body_regular pagination__text"
+                aria-live="polite"
+              >
+                {showingLabel}
+              </span>
+              <div
+                class="slds-col_bump-left slds-grid slds-grid_vertical-align-center"
+              >
+                <lightning-button
+                  label="Previous"
+                  disabled={isPreviousDisabled}
+                  onclick={handlePreviousPage}
+                ></lightning-button>
+                <span
+                  class="slds-text-body_regular slds-text-align_center slds-m-horizontal_small pagination__text pagination__page"
+                >
+                  {pageLabel}
+                </span>
+                <lightning-button
+                  label="Next"
+                  disabled={isNextDisabled}
+                  onclick={handleNextPage}
+                ></lightning-button>
+              </div>
+            </nav>
+          </template>
+
+          <!-- Empty states -->
+          <template lwc:else>
+            <div
+              class="slds-col slds-grid slds-grid_align-center slds-grid_vertical-align-center"
+            >
+              <div
+                class="slds-illustration slds-illustration_large slds-grid slds-grid_vertical slds-grid_vertical-align-center slds-theme_default slds-p-around_medium"
+                role="status"
+              >
+                <div class="illustration" aria-hidden="true">
+                  <template for:each={illustrationLayers} for:item="layer">
+                    <span key={layer.key} class={layer.className}>
+                      <img
+                        src={layer.src}
+                        alt=""
+                        class="slds-show illustration__image"
+                      />
+                    </span>
+                  </template>
+                </div>
+                <div class="slds-text-longform slds-m-top_medium">
+                  <h3 class="slds-text-heading_medium">{emptyStateTitle}</h3>
+                  <p class="slds-text-body_regular slds-text-color_weak">
+                    {emptyStateMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </section>
+      </div>
+    </c-page-container>
+
+    <template lwc:if={toast}>
+      <div class="slds-notify_container">
+        <div class={toastClass} role="status">
+          <span class="slds-assistive-text">{toast.variant}</span>
+          <lightning-icon
+            icon-name={toastIcon}
+            variant={toastIconVariant}
+            size="small"
+            class="slds-m-right_small slds-no-flex slds-align-top"
+          ></lightning-icon>
+          <div class="slds-notify__content">
+            <h2 class="slds-text-heading_small">{toast.title}</h2>
+            <p>{toast.message}</p>
+          </div>
+          <div class="slds-notify__close">
+            <lightning-button-icon
+              icon-name="utility:close"
+              variant={toastCloseVariant}
+              alternative-text="Close"
+              title="Close"
+              onclick={handleToastClose}
+            ></lightning-button-icon>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template lwc:if={isReasonModalOpen}>
+      <c-request-user-role-replace-reason-modal
+        current-user={flowCurrentUser}
+        scope-label={flowScopeLabel}
+        heading={reasonModalCopy.heading}
+        reason-label={reasonModalCopy.reasonLabel}
+        action-noun={reasonModalCopy.noun}
+        initial-reason={reasonModal.reason}
+        initial-note={reasonModal.note}
+        oncancel={handleReasonCancel}
+        onnext={handleReasonNext}
+      ></c-request-user-role-replace-reason-modal>
+    </template>
+
+    <template lwc:if={isReversalReasonModalOpen}>
+      <c-request-user-role-replace-reason-modal
+        scope-label={reversalScopeLabel}
+        heading={reversalHeading}
+        reason-label="Reversal Reason"
+        action-noun="reversal"
+        reasons={reversalReasons}
+        initial-reason={reversalReasonModal.reason}
+        initial-note={reversalReasonModal.note}
+        oncancel={handleReversalReasonCancel}
+        onnext={handleReversalReasonNext}
+      ></c-request-user-role-replace-reason-modal>
+    </template>
+
+    <template lwc:if={isAddRoleModalOpen}>
+      <c-request-user-role-add-role-modal
+        scope-label={addRoleScopeLabel}
+        role-types={roleTypeOptions}
+        users={userOptions}
+        initial-role-type={addRoleModal.roleType}
+        initial-users={addRoleModal.users}
+        oncancel={handleAddRoleCancel}
+        onnext={handleAddRoleNext}
+      ></c-request-user-role-add-role-modal>
+    </template>
+  </div>
+</template>

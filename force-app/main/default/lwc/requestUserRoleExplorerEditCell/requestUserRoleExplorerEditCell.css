@@ -1,0 +1,8 @@
+/*
+ * Rendered without the datatable's standard cell layout, so the cell fills the
+ * column and supplies its own horizontal padding; the pencil sits at the right edge.
+ */
+:host {
+  display: block;
+  min-width: 0;
+}

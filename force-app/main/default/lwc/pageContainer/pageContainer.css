@@ -1,0 +1,22 @@
+/*
+ * Layout-only wrapper that centres its slotted content and caps it at the
+ * design's 1728px canvas width. Override --c-page-container-max-width on the
+ * host to use a different cap.
+ */
+:host {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Percent heights let the slotted content fill a host that has been sized by its parent (e.g. a flex item). */
+.page-container,
+.page-container__content {
+  height: 100%;
+}
+
+.page-container__content {
+  min-width: 0;
+  /* custom: no SLDS equivalent — 1728px max canvas width from the Figma "Container" component */
+  max-width: var(--c-page-container-max-width, 120rem);
+}

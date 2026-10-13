@@ -1,0 +1,89 @@
+<template>
+  <div class="slds-scrollable_y detail">
+    <c-page-container class="detail__container">
+      <template lwc:if={hasBatch}>
+        <div class="slds-grid slds-p-around_medium detail__layout">
+          <!-- Batch details card -->
+          <aside
+            class="slds-box slds-theme_default slds-shrink-none slds-m-right_medium details-card"
+            aria-labelledby="batch-details-heading"
+          >
+            <h2
+              id="batch-details-heading"
+              class="slds-text-heading_small slds-border_bottom slds-p-bottom_small section-title"
+            >
+              Batch Details
+            </h2>
+            <dl class="slds-m-top_small">
+              <dt class="slds-text-body_small slds-text-color_weak">
+                Batch ID
+              </dt>
+              <dd class="slds-m-bottom_small detail-value">{batch.batchId}</dd>
+              <dt class="slds-text-body_small slds-text-color_weak">
+                Operation
+              </dt>
+              <dd class="slds-m-bottom_small detail-value">{operationTitle}</dd>
+              <dt class="slds-text-body_small slds-text-color_weak">
+                Performed by
+              </dt>
+              <dd class="slds-m-bottom_small detail-value">
+                {batch.performedBy}
+              </dd>
+              <dt class="slds-text-body_small slds-text-color_weak">
+                Performed on
+              </dt>
+              <dd class="slds-m-bottom_small detail-value">
+                {performedOnLabel}
+              </dd>
+              <dt class="slds-text-body_small slds-text-color_weak">Reason</dt>
+              <dd class="slds-m-bottom_small detail-value">{reasonLabel}</dd>
+              <dt class="slds-text-body_small slds-text-color_weak">Note</dt>
+              <dd class="slds-m-bottom_small detail-value">{noteLabel}</dd>
+              <template lwc:if={reversalBatchId}>
+                <dt class="slds-text-body_small slds-text-color_weak">
+                  Reversed by
+                </dt>
+                <dd class="detail-value">{reversalBatchId}</dd>
+              </template>
+            </dl>
+          </aside>
+
+          <!-- Changes -->
+          <div class="slds-col detail__main">
+            <h2
+              class="slds-text-heading_small slds-m-bottom_xx-small section-title"
+            >
+              Role Changes
+            </h2>
+            <article class="slds-card slds-scrollable_none detail-card">
+              <c-request-user-role-explorer-datatable
+                key-field="id"
+                data={roleRows}
+                columns={roleColumns}
+                hide-checkbox-column
+                onlinkcellclick={handleLinkCellClick}
+              ></c-request-user-role-explorer-datatable>
+            </article>
+
+            <template lwc:if={hasActivities}>
+              <h2
+                class="slds-text-heading_small slds-m-top_medium slds-m-bottom_xx-small section-title"
+              >
+                Activity Reassignments
+              </h2>
+              <article class="slds-card slds-scrollable_none detail-card">
+                <c-request-user-role-explorer-datatable
+                  key-field="id"
+                  data={activityRows}
+                  columns={activityColumns}
+                  hide-checkbox-column
+                  onlinkcellclick={handleLinkCellClick}
+                ></c-request-user-role-explorer-datatable>
+              </article>
+            </template>
+          </div>
+        </div>
+      </template>
+    </c-page-container>
+  </div>
+</template>

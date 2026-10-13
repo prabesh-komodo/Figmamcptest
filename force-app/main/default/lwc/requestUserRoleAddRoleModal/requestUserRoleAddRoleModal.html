@@ -1,0 +1,96 @@
+<template>
+  <section
+    role="dialog"
+    tabindex="-1"
+    aria-modal="true"
+    aria-labelledby="add-role-heading"
+    class="slds-modal slds-fade-in-open"
+    onkeydown={handleKeyDown}
+  >
+    <div class="slds-modal__container add-role-modal__container">
+      <lightning-button-icon
+        class="slds-button slds-button_icon slds-modal__close"
+        icon-name="utility:close"
+        variant="border-filled"
+        size="small"
+        alternative-text="Cancel and close"
+        onclick={handleCancel}
+      ></lightning-button-icon>
+      <div class="slds-modal__header">
+        <h1 id="add-role-heading" class="slds-modal__title slds-hyphenate">
+          Add Role
+        </h1>
+      </div>
+      <div class="slds-modal__content slds-p-around_medium">
+        <div class="slds-box slds-p-around_none context-card">
+          <dl class="slds-theme_shade slds-border_bottom slds-p-around_small">
+            <dt class="slds-text-body_small slds-text-color_weak">Scope</dt>
+            <dd class="slds-m-top_xx-small context-card__value">
+              {scopeLabel}
+            </dd>
+          </dl>
+          <div class="slds-p-around_small">
+            <div class="slds-form-element">
+              <span class="slds-form-element__label">
+                <abbr class="slds-required" title="required">*</abbr>Role Type
+              </span>
+              <c-request-user-role-user-lookup
+                label="Role Type"
+                placeholder="Search..."
+                options={roleTypes}
+                value={roleType}
+                onchange={handleRoleTypeChange}
+              ></c-request-user-role-user-lookup>
+            </div>
+            <div class="slds-form-element slds-m-top_small">
+              <span class="slds-form-element__label">
+                <abbr class="slds-required" title="required">*</abbr>User(s) to
+                Add
+              </span>
+              <c-request-user-role-user-lookup
+                label="User(s) to Add"
+                placeholder="Search users..."
+                options={availableUsers}
+                clear-on-select
+                onchange={handleUserPick}
+              ></c-request-user-role-user-lookup>
+              <template lwc:if={hasUsers}>
+                <ul
+                  class="slds-listbox slds-listbox_horizontal slds-p-top_xx-small"
+                  aria-label="Selected users"
+                >
+                  <template for:each={userPills} for:item="pill">
+                    <li
+                      key={pill.name}
+                      class="slds-listbox-item slds-m-right_xx-small slds-m-top_xx-small"
+                    >
+                      <lightning-pill
+                        label={pill.label}
+                        data-name={pill.name}
+                        onremove={handleUserRemove}
+                      ></lightning-pill>
+                    </li>
+                  </template>
+                </ul>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slds-modal__footer">
+        <lightning-button
+          label="Cancel"
+          class="slds-m-right_x-small"
+          onclick={handleCancel}
+        ></lightning-button>
+        <lightning-button
+          variant="brand"
+          label="Next"
+          disabled={isNextDisabled}
+          onclick={handleNext}
+        ></lightning-button>
+      </div>
+    </div>
+  </section>
+  <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</template>

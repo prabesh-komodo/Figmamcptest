@@ -1,0 +1,90 @@
+<template>
+  <section
+    role="dialog"
+    tabindex="-1"
+    aria-modal="true"
+    aria-labelledby="replace-reason-heading"
+    class="slds-modal slds-fade-in-open reason-modal"
+    onkeydown={handleKeyDown}
+  >
+    <div class="slds-modal__container reason-modal__container">
+      <lightning-button-icon
+        class="slds-button slds-button_icon slds-modal__close"
+        icon-name="utility:close"
+        variant="border-filled"
+        size="small"
+        alternative-text="Cancel and close"
+        onclick={handleCancel}
+      ></lightning-button-icon>
+      <div class="slds-modal__header">
+        <h1
+          id="replace-reason-heading"
+          class="slds-modal__title slds-hyphenate"
+        >
+          {heading}
+        </h1>
+      </div>
+      <div class="slds-modal__content slds-p-around_medium">
+        <div
+          class="slds-box slds-p-around_none slds-scrollable_none context-card"
+        >
+          <dl
+            class="slds-grid slds-theme_shade slds-border_bottom slds-p-around_small"
+          >
+            <template lwc:if={hasCurrentUser}>
+              <div class="slds-m-right_large">
+                <dt class="slds-text-body_small slds-text-color_weak">
+                  Existing User
+                </dt>
+                <dd class="slds-m-top_xx-small context-card__value">
+                  {currentUser}
+                </dd>
+              </div>
+            </template>
+            <div>
+              <dt class="slds-text-body_small slds-text-color_weak">Scope</dt>
+              <dd class="slds-m-top_xx-small context-card__value">
+                {scopeLabel}
+              </dd>
+            </div>
+          </dl>
+          <div class="slds-p-around_small">
+            <lightning-combobox
+              name="replacement-reason"
+              label={reasonLabel}
+              placeholder="Select Reason..."
+              options={reasonOptions}
+              value={reason}
+              required
+              onchange={handleReasonChange}
+            ></lightning-combobox>
+            <lightning-textarea
+              name="replacement-note"
+              label="Note"
+              placeholder={notePlaceholder}
+              value={note}
+              required={isNoteRequired}
+              message-when-value-missing="Add a note when the reason is Other."
+              class="slds-show slds-m-top_small"
+              onchange={handleNoteChange}
+            ></lightning-textarea>
+          </div>
+        </div>
+      </div>
+      <div class="slds-modal__footer">
+        <lightning-button
+          label="Cancel"
+          class="slds-m-right_x-small"
+          onclick={handleCancel}
+        ></lightning-button>
+        <lightning-button
+          variant="brand"
+          label="Next"
+          disabled={isNextDisabled}
+          onclick={handleNext}
+        ></lightning-button>
+      </div>
+    </div>
+  </section>
+  <div class="slds-backdrop slds-backdrop_open" role="presentation"></div>
+</template>

@@ -1,0 +1,4 @@
+/* Give the explorer the full viewport so its table body, not the page, scrolls. */
+.THIS.explorer-shell {
+  height: 100vh;
+}
