@@ -126,44 +126,46 @@
           <!-- Step 1: Assign users -->
           <template lwc:if={isAssignStep}>
             <article class="slds-card slds-scrollable_none flow-card">
-              <div
-                class="slds-grid slds-grid_vertical-align-center slds-border_bottom slds-p-horizontal_small selection-bar selection-bar_active"
-                aria-live="polite"
-              >
-                <span class="slds-text-title_bold slds-p-right_small"
-                  >{selectedRoleLabel}</span
-                >
-                <div
-                  class="slds-grid slds-grid_vertical-align-center slds-border_left slds-p-left_small"
-                >
-                  <span class="slds-text-title_bold slds-m-right_x-small"
-                    >Replace with</span
+              <div class={roleBarClass} aria-live="polite">
+                <template lwc:if={hasRoleSelection}>
+                  <span class="slds-text-title_bold slds-p-right_small"
+                    >{selectedRoleLabel}</span
                   >
-                  <c-request-user-role-user-lookup
-                    label="Replace with"
-                    options={replacementUsers}
-                    value={bulkUser}
-                    class="slds-m-right_small bulk-lookup"
-                    onchange={handleBulkUserChange}
-                  ></c-request-user-role-user-lookup>
-                  <lightning-button
-                    variant="brand"
-                    label="Assign"
-                    disabled={isAssignDisabled}
-                    onclick={handleAssign}
-                  ></lightning-button>
-                </div>
-                <div
-                  class="slds-border_left slds-p-left_small slds-m-left_small"
-                >
-                  <button
-                    type="button"
-                    class="slds-button_reset slds-text-link slds-text-body_small clear-selection"
-                    onclick={handleClearRoleSelection}
+                  <div
+                    class="slds-grid slds-grid_vertical-align-center slds-border_left slds-p-left_small"
                   >
-                    Clear Selection
-                  </button>
-                </div>
+                    <span class="slds-text-title_bold slds-m-right_x-small"
+                      >Replace with</span
+                    >
+                    <c-request-user-role-user-lookup
+                      label="Replace with"
+                      options={replacementUsers}
+                      value={bulkUser}
+                      class="slds-m-right_small bulk-lookup"
+                      onchange={handleBulkUserChange}
+                    ></c-request-user-role-user-lookup>
+                    <lightning-button
+                      variant="brand"
+                      label="Assign"
+                      disabled={isAssignDisabled}
+                      onclick={handleAssign}
+                    ></lightning-button>
+                  </div>
+                  <div
+                    class="slds-border_left slds-p-left_small slds-m-left_small"
+                  >
+                    <button
+                      type="button"
+                      class="slds-button_reset slds-text-link slds-text-body_small clear-selection"
+                      onclick={handleClearRoleSelection}
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                </template>
+                <template lwc:else>
+                  <h3 class="slds-text-title_bold">Request User Roles</h3>
+                </template>
               </div>
               <c-request-user-role-explorer-datatable
                 key-field="id"

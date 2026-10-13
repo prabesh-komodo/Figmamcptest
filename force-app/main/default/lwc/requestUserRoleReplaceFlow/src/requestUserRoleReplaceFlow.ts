@@ -268,6 +268,17 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
         return this.selectedRoleIds.length;
     }
 
+    get hasRoleSelection(): boolean {
+        return this.selectedRoleCount > 0;
+    }
+
+    /** Blue bar with the bulk controls while rows are selected; plain "Request User Roles" title otherwise. */
+    get roleBarClass(): string {
+        const base =
+            'slds-grid slds-grid_vertical-align-center slds-border_bottom slds-p-horizontal_small selection-bar';
+        return this.hasRoleSelection ? `${base} selection-bar_active` : base;
+    }
+
     get selectedRoleLabel(): string {
         return `${this.selectedRoleCount} selected`;
     }

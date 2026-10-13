@@ -245,7 +245,9 @@ export function applyReversal(
         })
     };
     const batches = [
-        ...context.batches.map((item) => (item.batchId === batch.batchId ? updatedOriginal : item)),
+        ...context.batches.map((item) => {
+            return item.batchId === batch.batchId ? updatedOriginal : item;
+        }),
         reversalRecord
     ];
     return { roles, activities, batches, reversal: reversalRecord };
