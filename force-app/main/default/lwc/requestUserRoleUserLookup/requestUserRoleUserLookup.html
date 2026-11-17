@@ -1,11 +1,6 @@
 <template>
   <div class="slds-form-element">
-    <label
-      class="slds-form-element__label slds-assistive-text"
-      for="user-lookup-input"
-    >
-      {label}
-    </label>
+    <label class={labelClass} for="user-lookup-input"> {label} </label>
     <div class="slds-form-element__control">
       <div class="slds-combobox_container">
         <div class={comboboxClass}>
@@ -105,7 +100,7 @@
                     class="slds-listbox__option slds-listbox__option_plain slds-text-color_weak"
                     role="presentation"
                   >
-                    No users found
+                    {noMatchesLabel}
                   </div>
                 </li>
               </template>

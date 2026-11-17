@@ -6,11 +6,9 @@ import {
   SAMPLE_BATCHES,
   SAMPLE_REQUESTS,
   SAMPLE_REQUEST_USER_ROLES,
-  SAMPLE_RESTRICTED_ROLE_TYPES,
   SAMPLE_USERS
 } from "./sampleData";
 import {
-  CLOSED_REQUEST_STATUSES,
   applyReversal,
   isReversible,
   nextBatchId,
@@ -25,6 +23,7 @@ import {
 /** An open activity a role's user holds on that role's request. */
 /** Everything the user can change inside one view; kept per view so switching tabs preserves it. */
 // Incoming base-component events
+/** The `lightning-input` that fires `commit` from the pagination's page-number field. */
 // Bubbles up from c-request-user-role-explorer-link-cell inside the datatable.
 // Replace User / De-activate Role(s) flows (shapes match their flow components)
 /** The reason popup that opens either flow; reason/note are pre-filled when coming back to it. */
@@ -37,6 +36,9 @@ const PAGE_SIZE_OPTIONS = ["10", "20", "50", "100"].map((value) => ({
 }));
 
 const DEFAULT_PAGE_SIZE = 20;
+
+/** Lookup filters show this many pills, then a "+N more" toggle. */
+const MAX_COLLAPSED_PILLS = 3;
 
 const VIEW_OPTIONS = [
   { label: "Request User Roles", value: "roles" },
@@ -63,10 +65,6 @@ const FLOW_COPY = {
     blockedTitle: "Can't de-activate roles"
   }
 };
-
-const SKIP_CLOSED = "Request closed / locked";
-const SKIP_NOT_PERMITTED = "Role not permitted on this request type";
-const SKIP_ALREADY_HOLDS = "Already holds this role on the request";
 
 /** Reasons offered when reversing a batch. */
 const REVERSAL_REASONS = [
@@ -99,6 +97,7 @@ const ILLUSTRATION_LAYERS = [
 function initialViewState() {
   return {
     filters: {},
+    expandedFilters: [],
     searchTerm: "",
     selectedIds: [],
     sortedBy: "",
@@ -149,12 +148,6 @@ export default class RequestUserRoleExplorer extends LightningElement {
   @api headerTitle = "Request User Role Administration";
 
   @api showSampleData = false;
-
-  /**
-   * Program type → role types that can't be added to its requests. Defaults to
-   * the sample restrictions in sample mode, otherwise none.
-   */
-  @api restrictedRoleTypes;
 
   /** Batch history (Replace / De-activate / Add Role / Reversal runs). Sample batches are used in sample mode. */
   @api
@@ -482,61 +475,64 @@ export default class RequestUserRoleExplorer extends LightningElement {
     return this.addRoleModal !== null;
   }
 
-  /** Role types offered by Add Role: every type already in use. */
-  get roleTypeOptions() {
+  /** Roles offered by Add Role: every role already in use. */
+  get roleOptions() {
     return Array.from(
-      new Set(this.roleRecords.map((role) => role.roleType))
+      new Set(this.roleRecords.map((role) => role.roleName))
     ).sort((a, b) => a.localeCompare(b));
   }
 
-  get roleRestrictions() {
-    return (
-      this.restrictedRoleTypes ??
-      (this.showSampleData ? SAMPLE_RESTRICTED_ROLE_TYPES : {})
-    );
-  }
-
   /**
-   * One entry per selected request × user. A pair is skipped when the request
-   * is closed, the role type isn't allowed on its program type, or the user
-   * already holds an active role of that type on the request.
+   * One entry per selected request × user. When the user already has a
+   * de-activated record of the role on the request, that record is
+   * reactivated; otherwise a new role is created. Users who already hold the
+   * role there are left out, since there is nothing to add.
    */
-  addRolePlan(requests, roleType, users) {
-    const held = new Set(
-      this.roleRecords
-        .filter(
-          (role) => role.roleStatus === "Active" && role.roleType === roleType
-        )
-        .map((role) => `${role.requestId}|${role.assignedUser}`)
-    );
-    const restrictions = this.roleRestrictions;
-    return requests.flatMap((request) =>
-      users.map((user) => {
-        let skipReason = "";
-        if (CLOSED_REQUEST_STATUSES.has(request.requestStatus)) {
-          skipReason = SKIP_CLOSED;
-        } else if (
-          (restrictions[request.programType] ?? []).includes(roleType)
-        ) {
-          skipReason = SKIP_NOT_PERMITTED;
-        } else if (held.has(`${request.requestId}|${user}`)) {
-          skipReason = SKIP_ALREADY_HOLDS;
+  addRolePlan(requests, roleName, users) {
+    const active = new Set();
+    const inactive = new Map();
+    this.roleRecords
+      .filter((role) => role.roleName === roleName)
+      .forEach((role) => {
+        const key = `${role.requestId}|${role.assignedUser}`;
+        if (role.roleStatus === "Active") {
+          active.add(key);
+          return;
         }
-        return {
-          id: `${request.id}|${user}`,
-          requestId: request.requestId,
-          programName: request.programName,
-          programType: request.programType,
-          roleType,
-          user,
-          skipReason
-        };
-      })
+        // Several past records: reactivate the one that ended last.
+        const latest = inactive.get(key);
+        if (
+          !latest ||
+          (role.effectiveEndDate ?? "") > (latest.effectiveEndDate ?? "")
+        ) {
+          inactive.set(key, role);
+        }
+      });
+    return requests.flatMap((request) =>
+      users
+        .filter((user) => !active.has(`${request.requestId}|${user}`))
+        .map((user) => {
+          const existing = inactive.get(`${request.requestId}|${user}`);
+          return {
+            id: `${request.id}|${user}`,
+            requestId: request.requestId,
+            programName: request.programName,
+            programType: request.programType,
+            role: roleName,
+            user,
+            action: existing ? "reactivate" : "create",
+            existingRoleId: existing?.id ?? ""
+          };
+        })
     );
   }
 
   get isReasonModalOpen() {
     return this.reasonModal !== null;
+  }
+
+  get isReplaceReasonModal() {
+    return this.reasonModal?.mode === "replace";
   }
 
   get reasonModalCopy() {
@@ -668,25 +664,48 @@ export default class RequestUserRoleExplorer extends LightningElement {
   }
 
   get filters() {
-    return this.view.filters.map(({ key, label }) => {
+    return this.view.filters.map(({ key, label, type }) => {
       const selected = this.state.filters[key] ?? [];
-      const options = Array.from(
+      const values = Array.from(
         new Set(
           this.sourceRecords.flatMap((record) => fieldValues(record, key))
         )
-      )
-        .filter((value) => !selected.includes(value))
-        .sort((a, b) => a.localeCompare(b))
-        .map((value) => ({ label: value, value }));
+      ).sort((a, b) => a.localeCompare(b));
+      const isLookup = type === "lookup";
+      const lookupOptions = isLookup
+        ? values.filter((value) => !selected.includes(value))
+        : [];
+      const pills = isLookup
+        ? selected.map((value) => ({ label: value, name: value }))
+        : [];
+      const hiddenCount = pills.length - MAX_COLLAPSED_PILLS;
+      const hasOverflow = hiddenCount > 0;
+      const isExpanded =
+        hasOverflow && this.state.expandedFilters.includes(key);
 
       return {
         key,
         label,
         name: `filter-${key}`,
-        options,
-        pills: selected.map((value) => ({ label: value, name: value })),
-        hasPills: selected.length > 0,
-        isDisabled: options.length === 0
+        isLookup,
+        lookupOptions,
+        picklistOptions: isLookup
+          ? []
+          : [
+              { label: "All", value: "" },
+              ...values.map((value) => ({ label: value, value }))
+            ],
+        value: selected[0] ?? null,
+        pills: isExpanded ? pills : pills.slice(0, MAX_COLLAPSED_PILLS),
+        hasPills: pills.length > 0,
+        hasOverflow,
+        isExpanded,
+        overflowLabel: isExpanded ? "Show less" : `+${hiddenCount} more`,
+        overflowIcon: isExpanded ? "utility:chevronup" : "utility:chevrondown",
+        pillsClass: isExpanded
+          ? "slds-box slds-box_xx-small slds-m-top_xx-small slds-scrollable_y filter-pills_expanded"
+          : "slds-m-top_xx-small",
+        isDisabled: isLookup ? lookupOptions.length === 0 : values.length === 0
       };
     });
   }
@@ -742,8 +761,8 @@ export default class RequestUserRoleExplorer extends LightningElement {
     return `Showing ${start}–${end} of ${total} ${this.view.recordNoun}`;
   }
 
-  get pageLabel() {
-    return `Page ${this.safeCurrentPage} of ${this.totalPages}`;
+  get pageCountLabel() {
+    return `of ${this.totalPages}`;
   }
 
   get isPreviousDisabled() {
@@ -770,10 +789,6 @@ export default class RequestUserRoleExplorer extends LightningElement {
       className: `illustration__layer illustration__layer_${name}`,
       src: `${ILLUSTRATION_URL}/${name}.svg`
     }));
-  }
-
-  get isExportDisabled() {
-    return !this.hasFilteredRecords;
   }
 
   // ------------------------------------------------------------ handlers
@@ -969,26 +984,13 @@ export default class RequestUserRoleExplorer extends LightningElement {
     this.dispatchEvent(new CustomEvent("viewchange", { detail: { view } }));
   }
 
-  handleExport() {
-    this.dispatchEvent(
-      new CustomEvent("export", {
-        detail: {
-          view: this.activeView,
-          recordIds: this.filteredRecords.map((record) => record.id),
-          filters: { ...this.state.filters },
-          searchTerm: this.state.searchTerm
-        }
-      })
-    );
-  }
-
   handleSearchChange(event) {
     this.updateState({ searchTerm: event.detail.value ?? "", currentPage: 1 });
   }
 
-  handleFilterChange(event) {
-    const combobox = event.currentTarget;
-    const key = combobox.dataset.key;
+  /** Lookup filters add each pick; picks are shown as pills below the input. */
+  handleLookupFilterChange(event) {
+    const key = event.currentTarget.dataset.key;
     const value = event.detail.value;
     const current = this.state.filters[key] ?? [];
 
@@ -998,26 +1000,53 @@ export default class RequestUserRoleExplorer extends LightningElement {
         currentPage: 1
       });
     }
-    // The combobox only adds values; selections are shown as pills below it.
-    combobox.value = null;
+  }
+
+  /** Picklist filters hold one value; "All" ('') clears the filter. */
+  handlePicklistFilterChange(event) {
+    const key = event.currentTarget.dataset.key;
+    const value = event.detail.value;
+    this.updateState({
+      filters: { ...this.state.filters, [key]: value ? [value] : [] },
+      currentPage: 1
+    });
   }
 
   handlePillRemove(event) {
     const key = event.currentTarget.dataset.key;
     const removed = event.detail.item.name;
+    const remaining = (this.state.filters[key] ?? []).filter(
+      (value) => value !== removed
+    );
+    // Once everything fits again, collapse so new picks start from the short list.
+    const expandedFilters =
+      remaining.length > MAX_COLLAPSED_PILLS
+        ? this.state.expandedFilters
+        : this.state.expandedFilters.filter((k) => k !== key);
     this.updateState({
-      filters: {
-        ...this.state.filters,
-        [key]: (this.state.filters[key] ?? []).filter(
-          (value) => value !== removed
-        )
-      },
+      filters: { ...this.state.filters, [key]: remaining },
+      expandedFilters,
       currentPage: 1
     });
   }
 
+  handlePillOverflowToggle(event) {
+    const key = event.currentTarget.dataset.key;
+    const expanded = this.state.expandedFilters;
+    this.updateState({
+      expandedFilters: expanded.includes(key)
+        ? expanded.filter((k) => k !== key)
+        : [...expanded, key]
+    });
+  }
+
   handleClearFilters() {
-    this.updateState({ filters: {}, searchTerm: "", currentPage: 1 });
+    this.updateState({
+      filters: {},
+      expandedFilters: [],
+      searchTerm: "",
+      currentPage: 1
+    });
   }
 
   handleRowSelection(event) {
@@ -1054,7 +1083,7 @@ export default class RequestUserRoleExplorer extends LightningElement {
       }
       if (this.selectedRoles.length > 0) {
         this.toast = null;
-        this.reasonModal = { mode, reason: "", note: "" };
+        this.reasonModal = { mode, reason: "", note: "", replacementUser: "" };
       }
       return;
     }
@@ -1062,7 +1091,7 @@ export default class RequestUserRoleExplorer extends LightningElement {
       // Guided flow; `addroles` is dispatched once the roles are created.
       if (this.selectedRequests.length > 0) {
         this.toast = null;
-        this.addRoleModal = { roleType: "", users: [] };
+        this.addRoleModal = { role: "", users: [] };
       }
       return;
     }
@@ -1078,15 +1107,15 @@ export default class RequestUserRoleExplorer extends LightningElement {
   }
 
   handleAddRoleNext(event) {
-    const { roleType, users } = event.detail;
+    const { role, users } = event.detail;
     this.addRoleModal = null;
     this.flowBatchId = "";
     this.flowEffectiveDate = "";
     this.addRoleContext = {
-      roleType,
+      role,
       users,
       scopeLabel: this.addRoleScopeLabel,
-      entries: this.addRolePlan(this.selectedRequests, roleType, users)
+      entries: this.addRolePlan(this.selectedRequests, role, users)
     };
   }
 
@@ -1096,10 +1125,15 @@ export default class RequestUserRoleExplorer extends LightningElement {
       return;
     }
     this.runBatch((batchId, effectiveDate, performedOn) => {
-      const created = this.applyAddRoles(context, batchId, effectiveDate);
+      const { created, reactivated } = this.applyAddRoles(
+        context,
+        batchId,
+        effectiveDate
+      );
       const programs = new Map(
         context.entries.map((entry) => [entry.requestId, entry.programName])
       );
+      const roleType = this.roleTypeOf(context.role);
       this.recordBatch({
         batchId,
         operation: "addrole",
@@ -1107,9 +1141,9 @@ export default class RequestUserRoleExplorer extends LightningElement {
         performedOn,
         reason: "",
         note: "",
-        roleChanges: created.map((item, index) => ({
+        roleChanges: [...created, ...reactivated].map((item, index) => ({
           id: `${batchId}-${index + 1}`,
-          roleType: context.roleType,
+          roleType,
           requestId: item.requestId,
           programName: programs.get(item.requestId) ?? "",
           previousUser: "",
@@ -1124,17 +1158,11 @@ export default class RequestUserRoleExplorer extends LightningElement {
         new CustomEvent("addroles", {
           detail: {
             batchId,
-            roleType: context.roleType,
+            role: context.role,
             users: context.users,
             effectiveDate,
             created,
-            skipped: context.entries
-              .filter((entry) => entry.skipReason)
-              .map((entry) => ({
-                requestId: entry.requestId,
-                user: entry.user,
-                reason: entry.skipReason
-              }))
+            reactivated
           }
         })
       );
@@ -1148,7 +1176,7 @@ export default class RequestUserRoleExplorer extends LightningElement {
       return;
     }
     this.addRoleContext = null;
-    this.addRoleModal = { roleType: context.roleType, users: context.users };
+    this.addRoleModal = { role: context.role, users: context.users };
   }
 
   handleSort(event) {
@@ -1197,6 +1225,19 @@ export default class RequestUserRoleExplorer extends LightningElement {
     });
   }
 
+  /** Jump to the typed page on Enter/blur; out-of-range numbers clamp, anything else snaps back. */
+  handlePageInputCommit(event) {
+    const input = event.target;
+    const requested = Math.trunc(Number(input.value));
+    const page =
+      requested >= 1
+        ? Math.min(requested, this.totalPages)
+        : this.safeCurrentPage;
+    // Write back so the field shows the resolved page even when the state doesn't change.
+    input.value = String(page);
+    this.updateState({ currentPage: page });
+  }
+
   handleReasonCancel() {
     this.reasonModal = null;
   }
@@ -1213,6 +1254,7 @@ export default class RequestUserRoleExplorer extends LightningElement {
       currentUser,
       reason: event.detail.reason,
       note: event.detail.note,
+      replacementUser: mode === "replace" ? event.detail.replacementUser : "",
       activities: this.pendingActivitiesFor(roles, currentUser),
       roles: roles.map(
         ({ id, roleName, roleType, requestId, programName, assignedUser }) => ({
@@ -1354,7 +1396,8 @@ export default class RequestUserRoleExplorer extends LightningElement {
     this.reasonModal = {
       mode: context.mode,
       reason: context.reason,
-      note: context.note
+      note: context.note,
+      replacementUser: context.replacementUser
     };
   }
 
@@ -1441,15 +1484,36 @@ export default class RequestUserRoleExplorer extends LightningElement {
     this.workingActivities = activities;
   }
 
-  /** Creates an active role for every request × user pair that wasn't skipped. */
+  /** Role type of a role name, from the existing records (the name itself when unknown). */
+  roleTypeOf(roleName) {
+    return (
+      this.roleRecords.find((role) => role.roleName === roleName)?.roleType ??
+      roleName
+    );
+  }
+
+  /**
+   * Reactivates each pair's de-activated record (Active, no end date) and
+   * creates an active role for every other pair.
+   */
   applyAddRoles(context, batchId, effectiveDate) {
     const requestsById = new Map(
       this.requestRecords.map((request) => [request.requestId, request])
     );
+    const roleType = this.roleTypeOf(context.role);
     const created = [];
     const newRoles = [];
+    const reactivateEntries = context.entries.filter(
+      (entry) => entry.action === "reactivate"
+    );
+    const reactivated = reactivateEntries.map((entry) => ({
+      requestId: entry.requestId,
+      user: entry.user,
+      roleId: entry.existingRoleId
+    }));
+    const reactivateIds = new Set(reactivated.map((item) => item.roleId));
     context.entries
-      .filter((entry) => !entry.skipReason)
+      .filter((entry) => entry.action === "create")
       .forEach((entry, index) => {
         const request = requestsById.get(entry.requestId);
         const roleId = `${batchId}-${index + 1}`;
@@ -1457,8 +1521,8 @@ export default class RequestUserRoleExplorer extends LightningElement {
         newRoles.push({
           id: roleId,
           assignedUser: entry.user,
-          roleName: context.roleType,
-          roleType: context.roleType,
+          roleName: context.role,
+          roleType,
           roleStatus: "Active",
           requestId: request.requestId,
           requestStatus: request.requestStatus,
@@ -1469,8 +1533,13 @@ export default class RequestUserRoleExplorer extends LightningElement {
           effectiveEndDate: null
         });
       });
-    this.workingRoles = [...this.roleRecords, ...newRoles];
-    return created;
+    const roles = this.roleRecords.map((role) => {
+      return reactivateIds.has(role.id)
+        ? { ...role, roleStatus: "Active", effectiveEndDate: null }
+        : role;
+    });
+    this.workingRoles = [...roles, ...newRoles];
+    return { created, reactivated };
   }
 
   // ------------------------------------------------------- batch records

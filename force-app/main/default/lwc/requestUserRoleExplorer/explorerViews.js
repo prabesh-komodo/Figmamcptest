@@ -5,6 +5,10 @@ import LOCALE from "@salesforce/i18n/locale";
  * between "Request User Roles" and "Requests" lives here.
  */
 
+/**
+ * `lookup`: type-ahead search, several values allowed (shown as pills).
+ * `picklist`: drop-down, one value shown in the field.
+ */
 /** Data from outside the active view that some views summarise. */
 const EMPTY_VALUE = "-";
 
@@ -83,14 +87,14 @@ export const VIEW_DEFINITIONS = {
       }
     ],
     filters: [
-      { key: "assignedUser", label: "Assigned User" },
-      { key: "roleName", label: "Role Name" },
-      { key: "roleType", label: "Role Type" },
-      { key: "roleStatus", label: "Role Status" },
-      { key: "requestStatus", label: "Request Status" },
-      { key: "programName", label: "Program Name" },
-      { key: "products", label: "Product" },
-      { key: "region", label: "Region/Country" }
+      { key: "assignedUser", label: "Assigned User", type: "lookup" },
+      { key: "roleName", label: "Role Name", type: "lookup" },
+      { key: "roleType", label: "Role Type", type: "picklist" },
+      { key: "roleStatus", label: "Role Status", type: "picklist" },
+      { key: "requestStatus", label: "Request Status", type: "picklist" },
+      { key: "programName", label: "Program Name", type: "lookup" },
+      { key: "products", label: "Product", type: "lookup" },
+      { key: "region", label: "Region/Country", type: "lookup" }
     ],
     sortFieldOverrides: {
       effectiveStartDateLabel: "effectiveStartDate",
@@ -153,10 +157,10 @@ export const VIEW_DEFINITIONS = {
       { label: "Region/Country", fieldName: "region", sortable: true }
     ],
     filters: [
-      { key: "programName", label: "Program Name" },
-      { key: "requestStatus", label: "Request Status" },
-      { key: "products", label: "Product" },
-      { key: "region", label: "Region/Country" }
+      { key: "programName", label: "Program Name", type: "lookup" },
+      { key: "requestStatus", label: "Request Status", type: "picklist" },
+      { key: "products", label: "Product", type: "lookup" },
+      { key: "region", label: "Region/Country", type: "lookup" }
     ],
     search: { key: "requestId", label: "Request", placeholder: "Search..." },
     sortFieldOverrides: {},

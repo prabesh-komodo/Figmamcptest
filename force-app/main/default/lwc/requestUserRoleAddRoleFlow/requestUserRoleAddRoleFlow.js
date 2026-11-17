@@ -1,22 +1,18 @@
 import { LightningElement, api } from "lwc";
 
 /*
- * Full-screen Add Role flow. The role type and users are picked in the
- * Add Role popup (step 1), so this page is the Review step, then a processing
- * state and a completion summary.
+ * Full-screen Add Role flow. The role and users are picked in the Add Role
+ * popup (step 1), so this page is the Review step, then a processing state and
+ * a completion summary.
  *
- * The parent works out which request × user pairs will be created or skipped
- * (`entries`), creates the roles when it receives `initiate`, sets
- * `processing` while it works and `batchId` when it is done, which switches
- * the flow to its completion view.
+ * The parent works out which request × user pairs get a new role and which
+ * reactivate a role the user held there before (`entries`), applies them when
+ * it receives `initiate`, sets `processing` while it works and `batchId` when
+ * it is done, which switches the flow to its completion view.
  */
 
-/** One request × user pair; `skipReason` is set when the role won't be created. */
-const WARNING_NOTE = {
-  noteIcon: "utility:warning",
-  noteIconVariant: "warning",
-  noteTextClass: "note-text_warning"
-};
+/** `reactivate` when the user already has a de-activated record of this role on the request. */
+/** One request × user pair. */
 const SUCCESS_NOTE = {
   noteIcon: "utility:success",
   noteIconVariant: "success",
@@ -73,7 +69,7 @@ const STEPS = [
 ];
 
 export default class RequestUserRoleAddRoleFlow extends LightningElement {
-  @api roleType = "";
+  @api role = "";
   @api users = [];
 
   /** e.g. "7 request(s) · 3 program(s) · 2 program type(s)" */
@@ -102,53 +98,53 @@ export default class RequestUserRoleAddRoleFlow extends LightningElement {
   }
 
   get createEntries() {
-    return this.entries.filter((entry) => !entry.skipReason);
+    return this.entries.filter((entry) => entry.action === "create");
   }
 
-  get skipEntries() {
-    return this.entries.filter((entry) => entry.skipReason);
-  }
-
-  get createCount() {
-    return this.createEntries.length;
+  get reactivateEntries() {
+    return this.entries.filter((entry) => entry.action === "reactivate");
   }
 
   get hasCreates() {
-    return this.createCount > 0;
+    return this.createEntries.length > 0;
   }
 
-  get hasSkips() {
-    return this.skipEntries.length > 0;
+  get hasReactivations() {
+    return this.reactivateEntries.length > 0;
+  }
+
+  get hasEntries() {
+    return this.entries.length > 0;
+  }
+
+  get hasNoEntries() {
+    return !this.hasEntries;
   }
 
   get createTitle() {
-    const records = recordCount(this.createCount);
+    const records = recordCount(this.createEntries.length);
     return this.isComplete
       ? `Created · ${records}`
       : `Will create · ${records}`;
   }
 
-  get skipTitle() {
-    const records = recordCount(this.skipEntries.length);
+  get reactivateTitle() {
+    const records = recordCount(this.reactivateEntries.length);
     return this.isComplete
-      ? `Skipped · ${records}`
-      : `Will be skipped · ${records}`;
+      ? `Reactivated · ${records}`
+      : `Will be reactivated · ${records}`;
   }
 
   get initiateLabel() {
-    return this.createCount === 1 ? "Add Role" : "Add Roles";
+    return this.entries.length === 1 ? "Add Role" : "Add Roles";
   }
 
   get completionMessage() {
-    return `Roles added · ${this.createCount} created, ${this.skipEntries.length} skipped.`;
+    return `Roles added · ${this.createEntries.length} created, ${this.reactivateEntries.length} reactivated.`;
   }
 
-  get createColumns() {
+  get tableColumns() {
     return this.columns(this.isComplete ? "Outcome" : "Status");
-  }
-
-  get skipColumns() {
-    return this.columns(this.isComplete ? "Outcome" : "Notes");
   }
 
   columns(lastLabel) {
@@ -160,7 +156,7 @@ export default class RequestUserRoleAddRoleFlow extends LightningElement {
         fieldName: "programType",
         initialWidth: PROGRAM_TYPE_COLUMN
       },
-      { label: "Role Type", fieldName: "roleType", initialWidth: WIDE_COLUMN },
+      { label: "Role", fieldName: "role", initialWidth: WIDE_COLUMN },
       { label: "User", fieldName: "user", initialWidth: WIDE_COLUMN },
       {
         label: lastLabel,
@@ -180,16 +176,17 @@ export default class RequestUserRoleAddRoleFlow extends LightningElement {
     }));
   }
 
-  get skipRows() {
-    return this.skipEntries.map((entry) => ({
+  get reactivateRows() {
+    const note = this.isComplete ? "Reactivated" : "Will reactivate";
+    return this.reactivateEntries.map((entry) => ({
       ...entry,
-      note: entry.skipReason,
-      ...WARNING_NOTE
+      note,
+      ...SUCCESS_NOTE
     }));
   }
 
   get isInitiateDisabled() {
-    return this.processing || !this.hasCreates;
+    return this.processing || !this.hasEntries;
   }
 
   // ------------------------------------------------------------- handlers

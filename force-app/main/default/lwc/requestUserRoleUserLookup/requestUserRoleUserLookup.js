@@ -25,6 +25,12 @@ export default class RequestUserRoleUserLookup extends LightningElement {
   /** Read-only picklist instead of a type-ahead search. */
   @api picklist = false;
 
+  /** Shows the label above the input; by default it is for screen readers only. */
+  @api showLabel = false;
+
+  /** Text shown in the list when nothing matches the search. */
+  @api noMatchesLabel = "No users found";
+
   @api
   get value() {
     return this.selectedValue;
@@ -95,6 +101,12 @@ export default class RequestUserRoleUserLookup extends LightningElement {
   placeDropdown(dropdown, top, left) {
     dropdown.style.setProperty("--c-dropdown-top", `${top}px`);
     dropdown.style.setProperty("--c-dropdown-left", `${left}px`);
+  }
+
+  get labelClass() {
+    return this.showLabel
+      ? "slds-form-element__label"
+      : "slds-form-element__label slds-assistive-text";
   }
 
   get inputValue() {

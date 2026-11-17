@@ -1,32 +1,34 @@
 import { LightningElement, api } from 'lwc';
 
 /*
- * Full-screen Add Role flow. The role type and users are picked in the
- * Add Role popup (step 1), so this page is the Review step, then a processing
- * state and a completion summary.
+ * Full-screen Add Role flow. The role and users are picked in the Add Role
+ * popup (step 1), so this page is the Review step, then a processing state and
+ * a completion summary.
  *
- * The parent works out which request × user pairs will be created or skipped
- * (`entries`), creates the roles when it receives `initiate`, sets
- * `processing` while it works and `batchId` when it is done, which switches
- * the flow to its completion view.
+ * The parent works out which request × user pairs get a new role and which
+ * reactivate a role the user held there before (`entries`), applies them when
+ * it receives `initiate`, sets `processing` while it works and `batchId` when
+ * it is done, which switches the flow to its completion view.
  */
 
-/** One request × user pair; `skipReason` is set when the role won't be created. */
+/** `reactivate` when the user already has a de-activated record of this role on the request. */
+export type AddRoleAction = 'create' | 'reactivate';
+
+/** One request × user pair. */
 export interface AddRoleEntry {
     id: string;
     requestId: string;
     programName: string;
     programType: string;
-    roleType: string;
+    role: string;
     user: string;
-    skipReason: string;
+    action: AddRoleAction;
 }
 
 interface LinkCellClickEvent extends CustomEvent {
     detail: { actionName: string; rowKey: string };
 }
 
-const WARNING_NOTE = { noteIcon: 'utility:warning', noteIconVariant: 'warning', noteTextClass: 'note-text_warning' };
 const SUCCESS_NOTE = { noteIcon: 'utility:success', noteIconVariant: 'success', noteTextClass: 'note-text_success' };
 
 const NOTE_TYPE_ATTRIBUTES = {
@@ -79,7 +81,7 @@ const STEPS = [
 ];
 
 export default class RequestUserRoleAddRoleFlow extends LightningElement {
-    @api roleType = '';
+    @api role = '';
     @api users: string[] = [];
 
     /** e.g. "7 request(s) · 3 program(s) · 2 program type(s)" */
@@ -108,49 +110,49 @@ export default class RequestUserRoleAddRoleFlow extends LightningElement {
     }
 
     get createEntries(): AddRoleEntry[] {
-        return this.entries.filter((entry) => !entry.skipReason);
+        return this.entries.filter((entry) => entry.action === 'create');
     }
 
-    get skipEntries(): AddRoleEntry[] {
-        return this.entries.filter((entry) => entry.skipReason);
-    }
-
-    get createCount(): number {
-        return this.createEntries.length;
+    get reactivateEntries(): AddRoleEntry[] {
+        return this.entries.filter((entry) => entry.action === 'reactivate');
     }
 
     get hasCreates(): boolean {
-        return this.createCount > 0;
+        return this.createEntries.length > 0;
     }
 
-    get hasSkips(): boolean {
-        return this.skipEntries.length > 0;
+    get hasReactivations(): boolean {
+        return this.reactivateEntries.length > 0;
+    }
+
+    get hasEntries(): boolean {
+        return this.entries.length > 0;
+    }
+
+    get hasNoEntries(): boolean {
+        return !this.hasEntries;
     }
 
     get createTitle(): string {
-        const records = recordCount(this.createCount);
+        const records = recordCount(this.createEntries.length);
         return this.isComplete ? `Created · ${records}` : `Will create · ${records}`;
     }
 
-    get skipTitle(): string {
-        const records = recordCount(this.skipEntries.length);
-        return this.isComplete ? `Skipped · ${records}` : `Will be skipped · ${records}`;
+    get reactivateTitle(): string {
+        const records = recordCount(this.reactivateEntries.length);
+        return this.isComplete ? `Reactivated · ${records}` : `Will be reactivated · ${records}`;
     }
 
     get initiateLabel(): string {
-        return this.createCount === 1 ? 'Add Role' : 'Add Roles';
+        return this.entries.length === 1 ? 'Add Role' : 'Add Roles';
     }
 
     get completionMessage(): string {
-        return `Roles added · ${this.createCount} created, ${this.skipEntries.length} skipped.`;
+        return `Roles added · ${this.createEntries.length} created, ${this.reactivateEntries.length} reactivated.`;
     }
 
-    get createColumns(): object[] {
+    get tableColumns(): object[] {
         return this.columns(this.isComplete ? 'Outcome' : 'Status');
-    }
-
-    get skipColumns(): object[] {
-        return this.columns(this.isComplete ? 'Outcome' : 'Notes');
     }
 
     columns(lastLabel: string): object[] {
@@ -158,7 +160,7 @@ export default class RequestUserRoleAddRoleFlow extends LightningElement {
             linkColumn('Request ID', 'requestId', 'view_request'),
             linkColumn('Program Name', 'programName', 'view_program'),
             { label: 'Program Type', fieldName: 'programType', initialWidth: PROGRAM_TYPE_COLUMN },
-            { label: 'Role Type', fieldName: 'roleType', initialWidth: WIDE_COLUMN },
+            { label: 'Role', fieldName: 'role', initialWidth: WIDE_COLUMN },
             { label: 'User', fieldName: 'user', initialWidth: WIDE_COLUMN },
             { label: lastLabel, fieldName: 'note', type: 'note', typeAttributes: NOTE_TYPE_ATTRIBUTES }
         ];
@@ -169,12 +171,13 @@ export default class RequestUserRoleAddRoleFlow extends LightningElement {
         return this.createEntries.map((entry) => ({ ...entry, note, ...SUCCESS_NOTE }));
     }
 
-    get skipRows(): Array<Record<string, unknown>> {
-        return this.skipEntries.map((entry) => ({ ...entry, note: entry.skipReason, ...WARNING_NOTE }));
+    get reactivateRows(): Array<Record<string, unknown>> {
+        const note = this.isComplete ? 'Reactivated' : 'Will reactivate';
+        return this.reactivateEntries.map((entry) => ({ ...entry, note, ...SUCCESS_NOTE }));
     }
 
     get isInitiateDisabled(): boolean {
-        return this.processing || !this.hasCreates;
+        return this.processing || !this.hasEntries;
     }
 
     // ------------------------------------------------------------- handlers

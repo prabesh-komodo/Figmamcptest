@@ -3,6 +3,8 @@ import { LightningElement, api } from 'lwc';
 export interface ReplaceReasonDetail {
     reason: string;
     note: string;
+    /** Set only when the popup asks for a replacing user (`selectReplacementUser`). */
+    replacementUser: string;
 }
 
 interface ValueChangeEvent extends CustomEvent {
@@ -24,7 +26,9 @@ const DEFAULT_REASONS = [
 /**
  * First step of the Replace User and De-activate Role(s) flows: confirms the
  * existing user and the scope, and captures a required reason plus an
- * optional note. Emits `cancel`, or `next` with `{ reason, note }`.
+ * optional note. With `selectReplacementUser` it also asks who replaces the
+ * existing user on every selected role. Emits `cancel`, or `next` with
+ * `{ reason, note, replacementUser }`.
  */
 export default class RequestUserRoleReplaceReasonModal extends LightningElement {
     @api currentUser = '';
@@ -47,9 +51,16 @@ export default class RequestUserRoleReplaceReasonModal extends LightningElement 
         this.reasonOptions = (value?.length ? value : DEFAULT_REASONS).map((reason) => ({ label: reason, value: reason }));
     }
 
+    /** Ask for the user who takes over the roles (Replace User). */
+    @api selectReplacementUser = false;
+
+    /** Users offered as the replacement; the existing user is left out. */
+    @api users: string[] = [];
+
     /** Pre-filled values, e.g. when the user comes back to this popup from the flow. */
     @api initialReason = '';
     @api initialNote = '';
+    @api initialReplacementUser = '';
 
     reasonOptions = DEFAULT_REASONS.map((reason) => ({ label: reason, value: reason }));
 
@@ -59,7 +70,12 @@ export default class RequestUserRoleReplaceReasonModal extends LightningElement 
     }
     reason = '';
     note = '';
+    replacementUser = '';
     hasFocused = false;
+
+    get replacementOptions(): string[] {
+        return (this.users ?? []).filter((user) => user !== this.currentUser);
+    }
 
     get isNoteRequired(): boolean {
         return this.reason === REASON_REQUIRING_NOTE;
@@ -72,10 +88,15 @@ export default class RequestUserRoleReplaceReasonModal extends LightningElement 
     connectedCallback(): void {
         this.reason = this.initialReason ?? '';
         this.note = this.initialNote ?? '';
+        this.replacementUser = this.initialReplacementUser ?? '';
     }
 
     get isNextDisabled(): boolean {
-        return !this.reason || (this.isNoteRequired && !this.note.trim());
+        return (
+            (this.selectReplacementUser && !this.replacementUser) ||
+            !this.reason ||
+            (this.isNoteRequired && !this.note.trim())
+        );
     }
 
     renderedCallback(): void {
@@ -89,6 +110,10 @@ export default class RequestUserRoleReplaceReasonModal extends LightningElement 
 
     handleReasonChange(event: ValueChangeEvent): void {
         this.reason = event.detail.value;
+    }
+
+    handleReplacementUserChange(event: ValueChangeEvent): void {
+        this.replacementUser = event.detail.value;
     }
 
     handleNoteChange(event: ValueChangeEvent): void {
@@ -116,7 +141,11 @@ export default class RequestUserRoleReplaceReasonModal extends LightningElement 
         }
         this.dispatchEvent(
             new CustomEvent<ReplaceReasonDetail>('next', {
-                detail: { reason: this.reason, note: this.note.trim() }
+                detail: {
+                    reason: this.reason,
+                    note: this.note.trim(),
+                    replacementUser: this.selectReplacementUser ? this.replacementUser : ''
+                }
             })
         );
     }

@@ -49,11 +49,33 @@
                 disabled={isPreviousDisabled}
                 onclick={handlePreviousPage}
               ></lightning-button>
-              <span
-                class="slds-text-body_regular slds-text-align_center slds-m-horizontal_small pagination__text pagination__page"
+              <div
+                class="slds-grid slds-grid_vertical-align-center slds-m-horizontal_small"
               >
-                {pageLabel}
-              </span>
+                <span
+                  class="slds-text-body_regular slds-m-right_x-small pagination__text"
+                  aria-hidden="true"
+                >
+                  Page
+                </span>
+                <lightning-input
+                  type="number"
+                  name="current-page"
+                  label="Current page"
+                  variant="label-hidden"
+                  min="1"
+                  max={totalPages}
+                  step="1"
+                  value={safeCurrentPage}
+                  class="page-input"
+                  oncommit={handlePageInputCommit}
+                ></lightning-input>
+                <span
+                  class="slds-text-body_regular slds-m-left_x-small pagination__text"
+                >
+                  {pageCountLabel}
+                </span>
+              </div>
               <lightning-button
                 label="Next"
                 disabled={isNextDisabled}

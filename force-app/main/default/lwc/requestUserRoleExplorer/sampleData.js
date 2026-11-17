@@ -519,17 +519,6 @@ export const SAMPLE_USERS = Array.from(
   ])
 ).sort((a, b) => a.localeCompare(b));
 
-// ------------------------------------------------------------- permissions
-
-/**
- * Role types that can't be added to requests of a program type (Add Role skips
- * those pairs with "Role not permitted on this request type").
- */
-export const SAMPLE_RESTRICTED_ROLE_TYPES = {
-  "Investigator Sponsored Study": ["Budget Reviewer", "Marketing Coordinator"],
-  "Research Collaboration": ["Marketing Coordinator"]
-};
-
 // ------------------------------------------------------------------ batches
 
 function roleAt(index) {

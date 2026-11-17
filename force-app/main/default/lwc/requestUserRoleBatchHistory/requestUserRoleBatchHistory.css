@@ -15,9 +15,10 @@
   color: var(--slds-g-color-on-surface-3, #03234d);
 }
 
-.pagination__page {
-  /* custom: no SLDS equivalent — fixed label width (87px in design) so "Page x of y" never shifts the buttons */
-  min-width: 5.4375rem;
+.page-input {
+  /* custom: no SLDS equivalent — compact page-number field (55px in design) */
+  min-width: 3.4375rem;
+  max-width: 3.4375rem;
 }
 
 .page-size-picker {

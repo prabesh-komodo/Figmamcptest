@@ -2,8 +2,9 @@ import { LightningElement, api } from "lwc";
 import LOCALE from "@salesforce/i18n/locale";
 
 /*
- * Full-screen Replace User flow: Assign users → Resolve activities → Review,
- * then a processing state and a completion summary.
+ * Full-screen Replace User flow: Resolve activities (only when the roles have
+ * open activities) → Review, then a processing state and a completion summary.
+ * The replacing user is picked in the reason popup that opens the flow.
  *
  * The flow only collects decisions. The parent performs the replacement when
  * it receives `initiate`, sets `processing` while it works and `batchId` when
@@ -14,7 +15,6 @@ import LOCALE from "@salesforce/i18n/locale";
 // From c-request-user-role-explorer-edit-cell (pencil button inside a datatable cell).
 /** The single-row editor popover currently open over a cell. */
 const STEP_LABELS = {
-  assign: "Assign users",
   activities: "Resolve activities",
   review: "Review"
 };
@@ -90,7 +90,9 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
   @api currentUser = "";
   @api reason = "";
   @api note = "";
-  @api users = [];
+
+  /** Who takes over every role; chosen in the reason popup. */
+  @api replacementUser = "";
 
   /** True while the parent is applying the replacement ("Replacing Records"). */
   @api processing = false;
@@ -101,33 +103,31 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
   /** ISO date the replacement took effect; shown as the new roles' start date. */
   @api effectiveDate = "";
 
-  @api
-  get roles() {
-    return this.flowRoles;
-  }
-  set roles(value) {
-    this.flowRoles = value ?? [];
-    // Every role starts selected so one "Assign" covers the common case.
-    this.selectedRoleIds = this.flowRoles.map((role) => role.id);
-  }
-
+  @api roles = [];
   @api activities = [];
 
-  flowRoles = [];
-  step = "assign";
-  selectedRoleIds = [];
+  step = "review";
   selectedActivityIds = [];
-  replaceWith = {};
   activityActions = {};
-  bulkUser = "";
   bulkAction = "";
   editor = null;
-  activitySelectionInitialized = false;
+
+  connectedCallback() {
+    // Like De-activate, every activity starts selected so one "Apply" covers the common case.
+    this.selectedActivityIds = this.pendingActivities.map(
+      (activity) => activity.id
+    );
+    this.step = this.hasActivities ? "activities" : "review";
+  }
 
   // --------------------------------------------------------------- state
 
   get isComplete() {
     return Boolean(this.batchId);
+  }
+
+  get flowRoles() {
+    return this.roles ?? [];
   }
 
   get pendingActivities() {
@@ -140,13 +140,7 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
   }
 
   get stepKeys() {
-    return this.hasActivities
-      ? ["assign", "activities", "review"]
-      : ["assign", "review"];
-  }
-
-  get isAssignStep() {
-    return !this.isComplete && this.step === "assign";
+    return this.hasActivities ? ["activities", "review"] : ["review"];
   }
 
   get isActivitiesStep() {
@@ -162,12 +156,9 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
     return this.isComplete || this.step === "review";
   }
 
+  /** Without open activities there is only one step, so the stepper is dropped. */
   get showStepper() {
-    return !this.isComplete;
-  }
-
-  get showBackButton() {
-    return !this.isComplete && this.step !== "assign";
+    return !this.isComplete && this.hasActivities;
   }
 
   get scopeLabel() {
@@ -196,38 +187,7 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
     });
   }
 
-  // -------------------------------------------------------- assign users
-
-  get replacementOptions() {
-    return this.replacementUsers.map((user) => ({ label: user, value: user }));
-  }
-
-  get replacementUsers() {
-    return this.users.filter((user) => user !== this.currentUser);
-  }
-
-  get selectedRoleCount() {
-    return this.selectedRoleIds.length;
-  }
-
-  get hasRoleSelection() {
-    return this.selectedRoleCount > 0;
-  }
-
-  /** Blue bar with the bulk controls while rows are selected; plain "Request User Roles" title otherwise. */
-  get roleBarClass() {
-    const base =
-      "slds-grid slds-grid_vertical-align-center slds-border_bottom slds-p-horizontal_small selection-bar";
-    return this.hasRoleSelection ? `${base} selection-bar_active` : base;
-  }
-
-  get selectedRoleLabel() {
-    return `${this.selectedRoleCount} selected`;
-  }
-
-  get isAssignDisabled() {
-    return !this.bulkUser || this.selectedRoleCount === 0;
-  }
+  // ----------------------------------------------------------------- roles
 
   get rolesWithActivities() {
     return new Set(this.pendingActivities.map((activity) => activity.roleId));
@@ -247,15 +207,7 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
       {
         label: "Replace With",
         fieldName: "replaceWith",
-        type: "editCell",
-        initialWidth: WIDE_COLUMN,
-        typeAttributes: {
-          placeholder: this.isAssignStep ? "Select User" : "",
-          label: "Replace With",
-          fieldKey: "replaceWith",
-          editable: this.isAssignStep,
-          rowKey: { fieldName: "id" }
-        }
+        initialWidth: WIDE_COLUMN
       }
     ];
     if (this.isComplete) {
@@ -288,19 +240,11 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
       }
       return {
         ...role,
-        replaceWith: this.replaceWith[role.id] ?? "",
+        replaceWith: this.replacementUser,
         effectiveStartDateLabel: effectiveStart,
         ...note
       };
     });
-  }
-
-  get isAssignNextDisabled() {
-    return this.flowRoles.some((role) => !this.replaceWith[role.id]);
-  }
-
-  get assignNextLabel() {
-    return this.hasActivities ? "Next: Resolve Activities" : "Next: Review";
   }
 
   // ---------------------------------------------------- resolve activities
@@ -358,8 +302,7 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
       return {
         ...activity,
         // Only an activity being handed over has a replacing user; "Do Nothing" stays with the current user.
-        replacingUser:
-          action === "assign" ? (this.replaceWith[activity.roleId] ?? "") : "",
+        replacingUser: action === "assign" ? this.replacementUser : "",
         actionLabel: action ? ACTION_LABELS[action] : "",
         ...this.activityNote(activity, action)
       };
@@ -430,30 +373,8 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
 
   // ------------------------------------------------------------- handlers
 
-  handleRoleSelection(event) {
-    this.selectedRoleIds = event.detail.selectedRows.map((row) => row.id);
-  }
-
   handleActivitySelection(event) {
     this.selectedActivityIds = event.detail.selectedRows.map((row) => row.id);
-  }
-
-  handleBulkUserChange(event) {
-    this.bulkUser = event.detail.value;
-  }
-
-  handleAssign() {
-    if (this.isAssignDisabled) {
-      return;
-    }
-    const updates = Object.fromEntries(
-      this.selectedRoleIds.map((id) => [id, this.bulkUser])
-    );
-    this.replaceWith = { ...this.replaceWith, ...updates };
-  }
-
-  handleClearRoleSelection() {
-    this.selectedRoleIds = [];
   }
 
   /** The selection bar's picklist works with labels; map back to the action key. */
@@ -481,21 +402,17 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
 
   // -------------------------------------------------- single-row editor
 
-  /** Pencil in a Replace With / Action cell: open the editor popover over that cell. */
+  /** Pencil in an Action cell: open the editor popover over that cell. */
   handleCellEdit(event) {
     event.stopPropagation();
     const { rowKey, fieldKey, top, left, width } = event.detail;
-    const isUser = fieldKey === "replaceWith";
-    const role = this.flowRoles.find((item) => item.id === rowKey);
     this.editor = {
       rowKey,
       fieldKey,
-      label: isUser ? `Replace With for ${role?.roleName ?? "role"}` : "Action",
-      placeholder: isUser ? "Select User..." : "Select Action...",
-      value: isUser
-        ? (this.replaceWith[rowKey] ?? "")
-        : (this.activityActions[rowKey] ?? ""),
-      options: isUser ? this.replacementOptions : ACTION_OPTIONS,
+      label: "Action",
+      placeholder: "Select Action...",
+      value: this.activityActions[rowKey] ?? "",
+      options: ACTION_OPTIONS,
       top: top - EDITOR_INSET / 2,
       left: left - EDITOR_INSET,
       width: width + EDITOR_INSET * 2
@@ -526,15 +443,10 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
     if (!editor) {
       return;
     }
-    const value = event.detail.value;
-    if (editor.fieldKey === "replaceWith") {
-      this.replaceWith = { ...this.replaceWith, [editor.rowKey]: value };
-    } else {
-      this.activityActions = {
-        ...this.activityActions,
-        [editor.rowKey]: value
-      };
-    }
+    this.activityActions = {
+      ...this.activityActions,
+      [editor.rowKey]: event.detail.value
+    };
     this.editor = null;
   }
 
@@ -573,20 +485,6 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
     }
   }
 
-  handleNextFromAssign() {
-    if (this.isAssignNextDisabled) {
-      return;
-    }
-    if (this.hasActivities && !this.activitySelectionInitialized) {
-      // Like the roles step, every activity starts selected so one "Apply" covers the common case.
-      this.selectedActivityIds = this.pendingActivities.map(
-        (activity) => activity.id
-      );
-      this.activitySelectionInitialized = true;
-    }
-    this.step = this.hasActivities ? "activities" : "review";
-  }
-
   handleNextFromActivities() {
     if (this.isActivitiesNextDisabled) {
       return;
@@ -594,9 +492,14 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
     this.step = "review";
   }
 
+  /** Back from the first step returns to the reason popup (the parent reopens it). */
   handleBack() {
     const index = this.stepKeys.indexOf(this.step);
-    this.step = this.stepKeys[Math.max(0, index - 1)];
+    if (index > 0) {
+      this.step = this.stepKeys[index - 1];
+      return;
+    }
+    this.dispatchEvent(new CustomEvent("back"));
   }
 
   handleCancel() {
@@ -618,12 +521,12 @@ export default class RequestUserRoleReplaceFlow extends LightningElement {
           note: this.note,
           replacements: this.flowRoles.map((role) => ({
             roleId: role.id,
-            newUser: this.replaceWith[role.id]
+            newUser: this.replacementUser
           })),
           activityActions: this.pendingActivities.map((activity) => ({
             activityId: activity.id,
             action: this.activityActions[activity.id],
-            newUser: this.replaceWith[activity.roleId]
+            newUser: this.replacementUser
           }))
         }
       })

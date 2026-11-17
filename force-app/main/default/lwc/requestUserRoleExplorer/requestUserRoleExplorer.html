@@ -93,35 +93,26 @@
               </div>
             </template>
             <template lwc:else>
-              <div
-                class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread"
-              >
-                <div class="slds-grid slds-grid_vertical-align-center">
-                  <lightning-button-icon-stateful
-                    icon-name="utility:filterList"
-                    selected={isFilterPanelOpen}
-                    alternative-text="Show filters"
-                    title="Filters"
-                    class="slds-m-right_xx-small"
-                    onclick={handleFilterPanelToggle}
-                  ></lightning-button-icon-stateful>
-                  <lightning-button-group>
-                    <template for:each={viewButtons} for:item="view">
-                      <lightning-button
-                        key={view.value}
-                        label={view.label}
-                        variant={view.variant}
-                        data-view={view.value}
-                        onclick={handleViewSelect}
-                      ></lightning-button>
-                    </template>
-                  </lightning-button-group>
-                </div>
-                <lightning-button
-                  label="Export"
-                  disabled={isExportDisabled}
-                  onclick={handleExport}
-                ></lightning-button>
+              <div class="slds-grid slds-grid_vertical-align-center">
+                <lightning-button-icon-stateful
+                  icon-name="utility:filterList"
+                  selected={isFilterPanelOpen}
+                  alternative-text="Show filters"
+                  title="Filters"
+                  class="slds-m-right_xx-small"
+                  onclick={handleFilterPanelToggle}
+                ></lightning-button-icon-stateful>
+                <lightning-button-group>
+                  <template for:each={viewButtons} for:item="view">
+                    <lightning-button
+                      key={view.value}
+                      label={view.label}
+                      variant={view.variant}
+                      data-view={view.value}
+                      onclick={handleViewSelect}
+                    ></lightning-button>
+                  </template>
+                </lightning-button-group>
               </div>
             </template>
           </div>
@@ -136,13 +127,14 @@
         current-user={flowContext.currentUser}
         reason={flowContext.reason}
         note={flowContext.note}
+        replacement-user={flowContext.replacementUser}
         roles={flowContext.roles}
         activities={flowContext.activities}
-        users={userOptions}
         processing={isProcessing}
         batch-id={flowBatchId}
         effective-date={flowEffectiveDate}
         oninitiate={handleFlowInitiate}
+        onback={handleFlowBack}
         oncancel={handleFlowExit}
         ondone={handleFlowExit}
         onrequestselect={handleFlowRequestSelect}
@@ -172,7 +164,7 @@
     <template lwc:elseif={isAddRoleFlow}>
       <c-request-user-role-add-role-flow
         class="slds-col slds-theme_shade explorer__main"
-        role-type={addRoleContext.roleType}
+        role={addRoleContext.role}
         users={addRoleContext.users}
         scope-label={addRoleContext.scopeLabel}
         entries={addRoleContext.entries}
@@ -265,24 +257,54 @@
                 </template>
                 <template for:each={filters} for:item="filter">
                   <div key={filter.key} class="slds-m-bottom_small">
-                    <lightning-combobox
-                      name={filter.name}
-                      label={filter.label}
-                      placeholder="Select..."
-                      options={filter.options}
-                      disabled={filter.isDisabled}
-                      data-key={filter.key}
-                      onchange={handleFilterChange}
-                    ></lightning-combobox>
-                    <template lwc:if={filter.hasPills}>
-                      <lightning-pill-container
-                        items={filter.pills}
-                        variant="bare"
+                    <template lwc:if={filter.isLookup}>
+                      <c-request-user-role-user-lookup
                         label={filter.label}
+                        placeholder="Select..."
+                        options={filter.lookupOptions}
+                        no-matches-label="No matches found"
+                        disabled={filter.isDisabled}
+                        show-label
+                        clear-on-select
                         data-key={filter.key}
-                        class="slds-m-top_xx-small"
-                        onitemremove={handlePillRemove}
-                      ></lightning-pill-container>
+                        onchange={handleLookupFilterChange}
+                      ></c-request-user-role-user-lookup>
+                    </template>
+                    <template lwc:else>
+                      <lightning-combobox
+                        name={filter.name}
+                        label={filter.label}
+                        placeholder="Select..."
+                        options={filter.picklistOptions}
+                        value={filter.value}
+                        disabled={filter.isDisabled}
+                        data-key={filter.key}
+                        onchange={handlePicklistFilterChange}
+                      ></lightning-combobox>
+                    </template>
+                    <template lwc:if={filter.hasPills}>
+                      <!-- Expanded: every pick in a tinted box that scrolls past its max height -->
+                      <div class={filter.pillsClass}>
+                        <lightning-pill-container
+                          items={filter.pills}
+                          variant="bare"
+                          label={filter.label}
+                          data-key={filter.key}
+                          onitemremove={handlePillRemove}
+                        ></lightning-pill-container>
+                      </div>
+                      <template lwc:if={filter.hasOverflow}>
+                        <lightning-button
+                          variant="base"
+                          label={filter.overflowLabel}
+                          icon-name={filter.overflowIcon}
+                          icon-position="right"
+                          aria-expanded={filter.isExpanded}
+                          data-key={filter.key}
+                          class="slds-m-left_xx-small slds-m-top_xx-small"
+                          onclick={handlePillOverflowToggle}
+                        ></lightning-button>
+                      </template>
                     </template>
                   </div>
                 </template>
@@ -422,11 +444,33 @@
                   disabled={isPreviousDisabled}
                   onclick={handlePreviousPage}
                 ></lightning-button>
-                <span
-                  class="slds-text-body_regular slds-text-align_center slds-m-horizontal_small pagination__text pagination__page"
+                <div
+                  class="slds-grid slds-grid_vertical-align-center slds-m-horizontal_small"
                 >
-                  {pageLabel}
-                </span>
+                  <span
+                    class="slds-text-body_regular slds-m-right_x-small pagination__text"
+                    aria-hidden="true"
+                  >
+                    Page
+                  </span>
+                  <lightning-input
+                    type="number"
+                    name="current-page"
+                    label="Current page"
+                    variant="label-hidden"
+                    min="1"
+                    max={totalPages}
+                    step="1"
+                    value={safeCurrentPage}
+                    class="page-input"
+                    oncommit={handlePageInputCommit}
+                  ></lightning-input>
+                  <span
+                    class="slds-text-body_regular slds-m-left_x-small pagination__text"
+                  >
+                    {pageCountLabel}
+                  </span>
+                </div>
                 <lightning-button
                   label="Next"
                   disabled={isNextDisabled}
@@ -503,8 +547,11 @@
         heading={reasonModalCopy.heading}
         reason-label={reasonModalCopy.reasonLabel}
         action-noun={reasonModalCopy.noun}
+        select-replacement-user={isReplaceReasonModal}
+        users={userOptions}
         initial-reason={reasonModal.reason}
         initial-note={reasonModal.note}
+        initial-replacement-user={reasonModal.replacementUser}
         oncancel={handleReasonCancel}
         onnext={handleReasonNext}
       ></c-request-user-role-replace-reason-modal>
@@ -527,9 +574,9 @@
     <template lwc:if={isAddRoleModalOpen}>
       <c-request-user-role-add-role-modal
         scope-label={addRoleScopeLabel}
-        role-types={roleTypeOptions}
+        roles={roleOptions}
         users={userOptions}
-        initial-role-type={addRoleModal.roleType}
+        initial-role={addRoleModal.role}
         initial-users={addRoleModal.users}
         oncancel={handleAddRoleCancel}
         onnext={handleAddRoleNext}

@@ -56,9 +56,9 @@
             <dl class="slds-grid slds-wrap slds-m-top_xx-small">
               <div class="slds-grid slds-m-right_medium">
                 <dt class="slds-text-color_weak slds-m-right_xx-small">
-                  Role Type:
+                  Role:
                 </dt>
-                <dd class="context-value">{roleType}</dd>
+                <dd class="context-value">{role}</dd>
               </div>
               <div class="slds-grid slds-m-right_medium">
                 <dt class="slds-text-color_weak slds-m-right_xx-small">
@@ -110,43 +110,45 @@
     <div class="slds-scrollable_y flow__body">
       <c-page-container>
         <div class="slds-p-around_medium">
-          <h3
-            class="slds-text-heading_small slds-m-bottom_x-small section-title"
-          >
-            {createTitle}
-          </h3>
           <template lwc:if={hasCreates}>
-            <article class="slds-card slds-scrollable_none flow-card">
+            <h3
+              class="slds-text-heading_small slds-m-bottom_x-small section-title"
+            >
+              {createTitle}
+            </h3>
+            <article
+              class="slds-card slds-scrollable_none slds-m-bottom_large flow-card"
+            >
               <c-request-user-role-explorer-datatable
                 key-field="id"
                 data={createRows}
-                columns={createColumns}
+                columns={tableColumns}
                 hide-checkbox-column
                 onlinkcellclick={handleLinkCellClick}
               ></c-request-user-role-explorer-datatable>
             </article>
           </template>
-          <template lwc:else>
-            <p class="slds-text-color_weak">
-              Every selected user already has this role or can't receive it on
-              these requests, so no role records will be created.
-            </p>
-          </template>
-          <template lwc:if={hasSkips}>
+          <template lwc:if={hasReactivations}>
             <h3
-              class="slds-text-heading_small slds-m-top_large slds-m-bottom_x-small section-title"
+              class="slds-text-heading_small slds-m-bottom_x-small section-title"
             >
-              {skipTitle}
+              {reactivateTitle}
             </h3>
             <article class="slds-card slds-scrollable_none flow-card">
               <c-request-user-role-explorer-datatable
                 key-field="id"
-                data={skipRows}
-                columns={skipColumns}
+                data={reactivateRows}
+                columns={tableColumns}
                 hide-checkbox-column
                 onlinkcellclick={handleLinkCellClick}
               ></c-request-user-role-explorer-datatable>
             </article>
+          </template>
+          <template lwc:if={hasNoEntries}>
+            <p class="slds-text-color_weak">
+              Every selected user already holds this role on these requests, so
+              there is nothing to add.
+            </p>
           </template>
         </div>
       </c-page-container>

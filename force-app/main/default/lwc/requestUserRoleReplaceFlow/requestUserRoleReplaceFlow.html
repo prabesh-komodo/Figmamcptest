@@ -62,6 +62,12 @@
               </div>
               <div class="slds-grid slds-m-right_medium">
                 <dt class="slds-text-color_weak slds-m-right_xx-small">
+                  Replace With:
+                </dt>
+                <dd class="context-value">{replacementUser}</dd>
+              </div>
+              <div class="slds-grid slds-m-right_medium">
+                <dt class="slds-text-color_weak slds-m-right_xx-small">
                   Scope:
                 </dt>
                 <dd class="context-value">{scopeLabel}</dd>
@@ -123,63 +129,7 @@
     <div class="slds-scrollable_y flow__body">
       <c-page-container>
         <div class="slds-p-around_medium">
-          <!-- Step 1: Assign users -->
-          <template lwc:if={isAssignStep}>
-            <article class="slds-card slds-scrollable_none flow-card">
-              <div class={roleBarClass} aria-live="polite">
-                <template lwc:if={hasRoleSelection}>
-                  <span class="slds-text-title_bold slds-p-right_small"
-                    >{selectedRoleLabel}</span
-                  >
-                  <div
-                    class="slds-grid slds-grid_vertical-align-center slds-border_left slds-p-left_small"
-                  >
-                    <span class="slds-text-title_bold slds-m-right_x-small"
-                      >Replace with</span
-                    >
-                    <c-request-user-role-user-lookup
-                      label="Replace with"
-                      options={replacementUsers}
-                      value={bulkUser}
-                      class="slds-m-right_small bulk-lookup"
-                      onchange={handleBulkUserChange}
-                    ></c-request-user-role-user-lookup>
-                    <lightning-button
-                      variant="brand"
-                      label="Assign"
-                      disabled={isAssignDisabled}
-                      onclick={handleAssign}
-                    ></lightning-button>
-                  </div>
-                  <div
-                    class="slds-border_left slds-p-left_small slds-m-left_small"
-                  >
-                    <button
-                      type="button"
-                      class="slds-button_reset slds-text-link slds-text-body_small clear-selection"
-                      onclick={handleClearRoleSelection}
-                    >
-                      Clear Selection
-                    </button>
-                  </div>
-                </template>
-                <template lwc:else>
-                  <h3 class="slds-text-title_bold">Request User Roles</h3>
-                </template>
-              </div>
-              <c-request-user-role-explorer-datatable
-                key-field="id"
-                data={roleRows}
-                columns={roleColumns}
-                selected-rows={selectedRoleIds}
-                onrowselection={handleRoleSelection}
-                oncelledit={handleCellEdit}
-                onlinkcellclick={handleLinkCellClick}
-              ></c-request-user-role-explorer-datatable>
-            </article>
-          </template>
-
-          <!-- Step 2: Resolve activities -->
+          <!-- Step 1 (only with open activities): Resolve activities -->
           <template lwc:if={isActivitiesStep}>
             <article class="slds-card slds-scrollable_none flow-card">
               <div class={activityBarClass} aria-live="polite">
@@ -237,7 +187,7 @@
             </article>
           </template>
 
-          <!-- Step 3 (review) and completion summary -->
+          <!-- Review and completion summary -->
           <template lwc:if={isSummary}>
             <h3
               class="slds-text-heading_small slds-m-bottom_x-small section-title"
@@ -282,13 +232,6 @@
         <div
           class="slds-grid slds-grid_align-center slds-grid_vertical-align-center slds-p-horizontal_medium slds-p-vertical_small"
         >
-          <template lwc:if={showBackButton}>
-            <lightning-button
-              label="Back"
-              class="slds-m-right_small"
-              onclick={handleBack}
-            ></lightning-button>
-          </template>
           <div>
             <template lwc:if={isComplete}>
               <lightning-button
@@ -298,18 +241,17 @@
             </template>
             <template lwc:else>
               <lightning-button
+                label="Back"
+                class="slds-m-right_small"
+                disabled={processing}
+                onclick={handleBack}
+              ></lightning-button>
+              <lightning-button
                 label="Cancel"
                 class="slds-m-right_small"
+                disabled={processing}
                 onclick={handleCancel}
               ></lightning-button>
-              <template lwc:if={isAssignStep}>
-                <lightning-button
-                  variant="brand"
-                  label={assignNextLabel}
-                  disabled={isAssignNextDisabled}
-                  onclick={handleNextFromAssign}
-                ></lightning-button>
-              </template>
               <template lwc:if={isActivitiesStep}>
                 <lightning-button
                   variant="brand"

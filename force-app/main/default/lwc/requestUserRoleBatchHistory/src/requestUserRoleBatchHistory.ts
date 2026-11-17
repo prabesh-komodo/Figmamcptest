@@ -23,6 +23,11 @@ interface ValueChangeEvent extends CustomEvent {
     detail: { value: string };
 }
 
+/** The `lightning-input` that fires `commit` from the pagination's page-number field. */
+interface PageInputElement extends HTMLElement {
+    value: string;
+}
+
 interface LinkCellClickEvent extends CustomEvent {
     detail: { actionName: string; rowKey: string };
 }
@@ -118,8 +123,8 @@ export default class RequestUserRoleBatchHistory extends LightningElement {
         return `Showing ${start}–${end} of ${total} batch(es)`;
     }
 
-    get pageLabel(): string {
-        return `Page ${this.safeCurrentPage} of ${this.totalPages}`;
+    get pageCountLabel(): string {
+        return `of ${this.totalPages}`;
     }
 
     get isPreviousDisabled(): boolean {
@@ -146,6 +151,16 @@ export default class RequestUserRoleBatchHistory extends LightningElement {
 
     handleNextPage(): void {
         this.currentPage = Math.min(this.totalPages, this.safeCurrentPage + 1);
+    }
+
+    /** Jump to the typed page on Enter/blur; out-of-range numbers clamp, anything else snaps back. */
+    handlePageInputCommit(event: Event): void {
+        const input = event.target as PageInputElement;
+        const requested = Math.trunc(Number(input.value));
+        const page = requested >= 1 ? Math.min(requested, this.totalPages) : this.safeCurrentPage;
+        // Write back so the field shows the resolved page even when currentPage doesn't change.
+        input.value = String(page);
+        this.currentPage = page;
     }
 
     handleLinkCellClick(event: LinkCellClickEvent): void {

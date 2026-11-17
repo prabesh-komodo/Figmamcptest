@@ -49,6 +49,20 @@
             </div>
           </dl>
           <div class="slds-p-around_small">
+            <template lwc:if={selectReplacementUser}>
+              <div class="slds-form-element slds-m-bottom_small">
+                <span class="slds-form-element__label" aria-hidden="true">
+                  <abbr class="slds-required" title="required">* </abbr>Replace
+                  With
+                </span>
+                <c-request-user-role-user-lookup
+                  label="Replace With"
+                  options={replacementOptions}
+                  value={replacementUser}
+                  onchange={handleReplacementUserChange}
+                ></c-request-user-role-user-lookup>
+              </div>
+            </template>
             <lightning-combobox
               name="replacement-reason"
               label={reasonLabel}

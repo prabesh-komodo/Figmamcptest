@@ -54,6 +54,18 @@
   max-width: var(--c-filter-panel-width);
 }
 
+/* Expanded pill list: grows with its pills up to 200px, then scrolls. */
+.filter-pills_expanded {
+  /* custom: no SLDS equivalent — 200px cap from the design request */
+  max-height: 12.5rem;
+  background-color: var(--slds-g-color-surface-container-2, #f3f3f3);
+  border-color: var(--slds-g-color-border-1, #c9c9c9);
+  border-radius: var(--slds-g-radius-border-2, 0.5rem);
+  /* Scrolling the pills shouldn't also scroll the filter panel. */
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
 /* Lets the datatable scroll horizontally instead of widening the flex row. */
 .content-region {
   min-width: 0;
@@ -106,9 +118,10 @@
   color: var(--slds-g-color-on-surface-3, #03234d);
 }
 
-.pagination__page {
-  /* custom: no SLDS equivalent — fixed label width (87px in design) so "Page x of y" never shifts the buttons */
-  min-width: 5.4375rem;
+.page-input {
+  /* custom: no SLDS equivalent — compact page-number field (55px in design) */
+  min-width: 3.4375rem;
+  max-width: 3.4375rem;
 }
 
 .page-size-picker {

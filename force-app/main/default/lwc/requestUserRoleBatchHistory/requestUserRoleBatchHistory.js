@@ -7,6 +7,7 @@ import LOCALE from "@salesforce/i18n/locale";
  */
 
 /** Shape of the explorer's batch records that this list reads. */
+/** The `lightning-input` that fires `commit` from the pagination's page-number field. */
 const OPERATION_LABELS = {
   replace: "Replace",
   deactivate: "Deactivate",
@@ -107,8 +108,8 @@ export default class RequestUserRoleBatchHistory extends LightningElement {
     return `Showing ${start}–${end} of ${total} batch(es)`;
   }
 
-  get pageLabel() {
-    return `Page ${this.safeCurrentPage} of ${this.totalPages}`;
+  get pageCountLabel() {
+    return `of ${this.totalPages}`;
   }
 
   get isPreviousDisabled() {
@@ -135,6 +136,19 @@ export default class RequestUserRoleBatchHistory extends LightningElement {
 
   handleNextPage() {
     this.currentPage = Math.min(this.totalPages, this.safeCurrentPage + 1);
+  }
+
+  /** Jump to the typed page on Enter/blur; out-of-range numbers clamp, anything else snaps back. */
+  handlePageInputCommit(event) {
+    const input = event.target;
+    const requested = Math.trunc(Number(input.value));
+    const page =
+      requested >= 1
+        ? Math.min(requested, this.totalPages)
+        : this.safeCurrentPage;
+    // Write back so the field shows the resolved page even when currentPage doesn't change.
+    input.value = String(page);
+    this.currentPage = page;
   }
 
   handleLinkCellClick(event) {

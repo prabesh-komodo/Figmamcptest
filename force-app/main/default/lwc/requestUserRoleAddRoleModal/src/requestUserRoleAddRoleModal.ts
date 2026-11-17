@@ -1,7 +1,7 @@
 import { LightningElement, api } from 'lwc';
 
 export interface AddRoleNextDetail {
-    roleType: string;
+    role: string;
     users: string[];
 }
 
@@ -11,28 +11,28 @@ interface ValueChangeEvent extends CustomEvent {
 
 /**
  * First step of the Add Role flow: shows the selected requests' scope and
- * captures one role type plus the users to give it to (picked as pills).
- * Emits `cancel`, or `next` with `{ roleType, users }`.
+ * captures one role plus the users to give it to (picked as pills).
+ * Emits `cancel`, or `next` with `{ role, users }`.
  */
 export default class RequestUserRoleAddRoleModal extends LightningElement {
     /** e.g. "7 request(s) · 3 program(s) · 2 program type(s)" */
     @api scopeLabel = '';
 
-    /** Role types offered in the Role Type lookup. */
-    @api roleTypes: string[] = [];
+    /** Roles offered in the Role lookup. */
+    @api roles: string[] = [];
 
     /** Users offered in the User(s) to Add lookup. */
     @api users: string[] = [];
 
     /** Pre-filled values, e.g. when the user comes back to this popup from the review. */
-    @api initialRoleType = '';
+    @api initialRole = '';
     @api initialUsers: string[] = [];
 
-    roleType = '';
+    role = '';
     selectedUsers: string[] = [];
 
     connectedCallback(): void {
-        this.roleType = this.initialRoleType ?? '';
+        this.role = this.initialRole ?? '';
         this.selectedUsers = [...(this.initialUsers ?? [])];
     }
 
@@ -51,11 +51,11 @@ export default class RequestUserRoleAddRoleModal extends LightningElement {
     }
 
     get isNextDisabled(): boolean {
-        return !this.roleType || !this.hasUsers;
+        return !this.role || !this.hasUsers;
     }
 
-    handleRoleTypeChange(event: ValueChangeEvent): void {
-        this.roleType = event.detail.value;
+    handleRoleChange(event: ValueChangeEvent): void {
+        this.role = event.detail.value;
     }
 
     handleUserPick(event: ValueChangeEvent): void {
@@ -87,7 +87,7 @@ export default class RequestUserRoleAddRoleModal extends LightningElement {
         }
         this.dispatchEvent(
             new CustomEvent<AddRoleNextDetail>('next', {
-                detail: { roleType: this.roleType, users: [...this.selectedUsers] }
+                detail: { role: this.role, users: [...this.selectedUsers] }
             })
         );
     }

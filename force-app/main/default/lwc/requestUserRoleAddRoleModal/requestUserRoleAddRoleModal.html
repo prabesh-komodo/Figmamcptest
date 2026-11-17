@@ -32,14 +32,14 @@
           <div class="slds-p-around_small">
             <div class="slds-form-element">
               <span class="slds-form-element__label">
-                <abbr class="slds-required" title="required">*</abbr>Role Type
+                <abbr class="slds-required" title="required">*</abbr>Role
               </span>
               <c-request-user-role-user-lookup
-                label="Role Type"
+                label="Role"
                 placeholder="Search..."
-                options={roleTypes}
-                value={roleType}
-                onchange={handleRoleTypeChange}
+                options={roles}
+                value={role}
+                onchange={handleRoleChange}
               ></c-request-user-role-user-lookup>
             </div>
             <div class="slds-form-element slds-m-top_small">
